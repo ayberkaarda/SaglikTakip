@@ -1,35 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using SaglikTakip.UI.Infrastructure;
 
-namespace SaglikTakip
+namespace SaglikTakip.UI
 {
+    /// <summary>Main menu that opens the user, health record, exercise and report screens.</summary>
     public partial class Form1 : Form
     {
-        public Form1()
+        private readonly IFormFactory _formFactory;
+
+        public Form1(IFormFactory formFactory)
         {
+            _formFactory = formFactory;
             InitializeComponent();
         }
 
         private void btnKullaniciEkle_Click(object sender, EventArgs e)
         {
-            new KullaniciEkleForm().ShowDialog();
+            OpenDialog<KullaniciEkleForm>();
         }
 
         private void btnSaglikKaydi_Click(object sender, EventArgs e)
         {
-            new SaglikKayitForm().ShowDialog();
+            OpenDialog<SaglikKayitForm>();
         }
 
         private void btnEgzersizEkle_Click(object sender, EventArgs e)
         {
-            new EgzersizKayitForm().ShowDialog();
+            OpenDialog<EgzersizKayitForm>();
+        }
+
+        private void Raporgor_Click(object sender, EventArgs e)
+        {
+            OpenDialog<Raporekleform>();
         }
 
         private void cikis_Click(object sender, EventArgs e)
@@ -37,19 +38,21 @@ namespace SaglikTakip
             Application.Exit();
         }
 
-        private void Raporgor_Click(object sender, EventArgs e)
-        {
-            new Raporekleform().ShowDialog();
-        }
-
         private void btnkapat_Click(object sender, EventArgs e)
         {
-            this.Close();
+            Close();
         }
 
         private void btnAsagial_Click(object sender, EventArgs e)
         {
-            this.WindowState = FormWindowState.Minimized;
+            WindowState = FormWindowState.Minimized;
+        }
+
+        private void OpenDialog<T>()
+            where T : Form
+        {
+            using var form = _formFactory.Create<T>();
+            form.ShowDialog(this);
         }
     }
 }

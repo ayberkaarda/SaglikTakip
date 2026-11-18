@@ -1,4 +1,4 @@
-﻿namespace SaglikTakip
+﻿namespace SaglikTakip.UI
 {
     partial class SaglikKayitForm
     {
@@ -87,6 +87,7 @@
             // textBox1
             // 
             this.textBox1.Location = new System.Drawing.Point(308, 116);
+            this.textBox1.MaxLength = 500;
             this.textBox1.Multiline = true;
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(163, 61);

@@ -1,4 +1,4 @@
-﻿namespace SaglikTakip
+﻿namespace SaglikTakip.UI
 {
     partial class KullaniciEkleForm
     {
@@ -137,7 +137,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(95)))), ((int)(((byte)(108)))), ((int)(((byte)(140)))));
-            this.BackgroundImage = global::SaglikTakip.Properties.Resources.Background;
+            this.BackgroundImage = global::SaglikTakip.UI.Properties.Resources.Background;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.ClientSize = new System.Drawing.Size(409, 260);
             this.Controls.Add(this.btnkapat);

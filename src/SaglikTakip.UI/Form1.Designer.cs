@@ -1,4 +1,4 @@
-﻿namespace SaglikTakip
+﻿namespace SaglikTakip.UI
 {
     partial class Form1
     {

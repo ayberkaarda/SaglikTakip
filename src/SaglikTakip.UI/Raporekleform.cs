@@ -1,32 +1,41 @@
-﻿using System;
-using System.Data;
-using System.Data.SqlClient;
-using System.Windows.Forms;
+﻿using System.Globalization;
+using SaglikTakip.Business.Services;
+using SaglikTakip.Domain.Entities;
+using SaglikTakip.UI.Infrastructure;
 
-namespace SaglikTakip
+namespace SaglikTakip.UI
 {
+    /// <summary>Shows the health records and exercises of the selected user.</summary>
     public partial class Raporekleform : Form
     {
-        public Raporekleform()
+        private const string Empty = "—";
+
+        private static readonly Dictionary<string, string> HealthRecordColumns = new()
         {
+            [nameof(HealthRecord.Date)] = "Tarih",
+            [nameof(HealthRecord.Weight)] = "Kilo",
+            [nameof(HealthRecord.Pulse)] = "Nabız",
+            [nameof(HealthRecord.Notes)] = "Notlar",
+        };
+
+        private static readonly Dictionary<string, string> ExerciseColumns = new()
+        {
+            [nameof(Exercise.Name)] = "Egzersiz Adı",
+            [nameof(Exercise.DurationMinutes)] = "Süre (dk)",
+            [nameof(Exercise.Repetitions)] = "Tekrar Sayısı",
+        };
+
+        private readonly IUserService _userService;
+        private readonly IReportService _reportService;
+
+        public Raporekleform(IUserService userService, IReportService reportService)
+        {
+            _userService = userService;
+            _reportService = reportService;
             InitializeComponent();
         }
 
-        // Kullanıcı sınıfı
-        public class Kullanici
-        {
-            public int Id { get; set; }
-            public string Ad { get; set; }
-            public int Yas { get; set; }
-            public string Cinsiyet { get; set; }
-
-            public override string ToString()
-            {
-                return $"{Ad} - {Yas} Yaş - {Cinsiyet}";
-            }
-        }
-
-        private void Raporekleform_Load(object sender, EventArgs e)
+        private async void Raporekleform_Load(object sender, EventArgs e)
         {
             lblTarih.Text = " ";
             lblKilo.Text = " ";
@@ -35,113 +44,53 @@ namespace SaglikTakip
             lblEgzersiz.Text = " ";
             lblSure.Text = " ";
             lblTekrar.Text = " ";
+
+            await this.RunAsync(() => comboBox1.LoadUsersAsync(_userService));
             comboBox1.SelectedIndexChanged += comboBox1_SelectedIndexChanged;
-            KullaniciListesiGetir();
         }
 
-        private void KullaniciListesiGetir()
+        private async void comboBox1_SelectedIndexChanged(object? sender, EventArgs e)
         {
-            string query = "SELECT Id, Ad, Yas, Cinsiyet FROM Kullanicilar";
-            DataTable dt = databaseHelper.ExecuteQuery(query);
-
-            comboBox1.Items.Clear();
-
-            foreach (DataRow row in dt.Rows)
+            if (comboBox1.SelectedItem is not User user)
             {
-                Kullanici kullanici = new Kullanici
-                {
-                    Id = Convert.ToInt32(row["Id"]),
-                    Ad = row["Ad"].ToString(),
-                    Yas = Convert.ToInt32(row["Yas"]),
-                    Cinsiyet = row["Cinsiyet"].ToString()
-                };
-                comboBox1.Items.Add(kullanici);
+                return;
             }
+
+            await this.RunAsync(async () => ShowReport(await _reportService.GetUserReportAsync(user.Id)));
         }
 
-        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        private void ShowReport(UserReport report)
         {
-            if (comboBox1.SelectedItem == null) return;
-
-            Kullanici secilen = comboBox1.SelectedItem as Kullanici;
-            if (secilen != null)
+            dataSaglikKaydi.DataSource = report.HealthRecords.ToList();
+            dataSaglikKaydi.ConfigureColumns(HealthRecordColumns);
+            if (dataSaglikKaydi.Columns[nameof(HealthRecord.Date)] is { } dateColumn)
             {
-                SaglikKayitlariniGetir(secilen.Id);
-                EgzersizKayitlariniGetir(secilen.Id);
-                LabelVerileriniAktar(secilen.Id);
-            }
-        }
-
-        private void SaglikKayitlariniGetir(int kullaniciId)
-        {
-            string query = "SELECT Tarih, Kilo, Nabiz, Notlar FROM SaglikKayitlari WHERE KullaniciId = @id";
-            SqlParameter[] parameters = {
-                new SqlParameter("@id", kullaniciId)
-            };
-
-            DataTable dt = databaseHelper.ExecuteQuery(query, parameters);
-            dataSaglikKaydi.DataSource = dt;
-        }
-
-        private void EgzersizKayitlariniGetir(int kullaniciId)
-        {
-            string query = "SELECT EgzersizAdi, SureDakika, TekrarSayisi FROM Egzersizler WHERE KullaniciId = @id";
-            SqlParameter[] parameters = {
-                new SqlParameter("@id", kullaniciId)
-            };
-
-            DataTable dt = databaseHelper.ExecuteQuery(query, parameters);
-            dataSporKaydi.DataSource = dt;
-        }
-
-        private void LabelVerileriniAktar(int kullaniciId)
-        {
-            // Sağlık kaydı verilerini al
-            string saglikQuery = "SELECT TOP 1 [Tarih], [Kilo], [Nabiz], [Notlar] FROM [SaglikKayitlari] WHERE [KullaniciId] = @id ORDER BY [Tarih] DESC";
-            SqlParameter[] parameters = {
-                new SqlParameter("@id", kullaniciId)
-            };
-
-            DataTable dtSaglik = databaseHelper.ExecuteQuery(saglikQuery, parameters);
-
-            if (dtSaglik.Rows.Count > 0)
-            {
-                DataRow row = dtSaglik.Rows[0];
-                lblKilo.Text = row["Kilo"] != DBNull.Value ? row["Kilo"].ToString() : "—";
-                lblNabiz.Text = row["Nabiz"] != DBNull.Value ? row["Nabiz"].ToString() : "—";
-                lblNot.Text = row["Notlar"] != DBNull.Value ? row["Notlar"].ToString() : "—";
-                lblTarih.Text = row["Tarih"] != DBNull.Value ? Convert.ToDateTime(row["Tarih"]).ToString("dd MMMM yyyy") : "—";
-            }
-            else
-            {
-                lblKilo.Text = lblNabiz.Text = lblNot.Text = lblTarih.Text = "—";
+                dateColumn.DefaultCellStyle.Format = "d";
             }
 
-            // Egzersiz kaydı verilerini al
-            string egzersizQuery = "SELECT TOP 1 EgzersizAdi, SureDakika, TekrarSayisi FROM Egzersizler WHERE KullaniciId = @id";
-            DataTable dtEgzersiz = databaseHelper.ExecuteQuery(egzersizQuery, parameters);
+            dataSporKaydi.DataSource = report.Exercises.ToList();
+            dataSporKaydi.ConfigureColumns(ExerciseColumns);
 
-            if (dtEgzersiz.Rows.Count > 0)
-            {
-                DataRow row = dtEgzersiz.Rows[0];
-                lblEgzersiz.Text = row["EgzersizAdi"] != DBNull.Value ? row["EgzersizAdi"].ToString() : "—";
-                lblSure.Text = row["SureDakika"] != DBNull.Value ? row["SureDakika"].ToString() : "—";
-                lblTekrar.Text = row["TekrarSayisi"] != DBNull.Value ? row["TekrarSayisi"].ToString() : "—";
-            }
-            else
-            {
-                lblEgzersiz.Text = lblSure.Text = lblTekrar.Text = "—";
-            }
+            var record = report.LatestHealthRecord;
+            lblKilo.Text = record?.Weight.ToString(CultureInfo.CurrentCulture) ?? Empty;
+            lblNabiz.Text = record?.Pulse.ToString(CultureInfo.CurrentCulture) ?? Empty;
+            lblNot.Text = record is null ? Empty : record.Notes ?? Empty;
+            lblTarih.Text = record?.Date.ToString("dd MMMM yyyy", CultureInfo.CurrentCulture) ?? Empty;
+
+            var exercise = report.LatestExercise;
+            lblEgzersiz.Text = exercise?.Name ?? Empty;
+            lblSure.Text = exercise?.DurationMinutes.ToString(CultureInfo.CurrentCulture) ?? Empty;
+            lblTekrar.Text = exercise?.Repetitions.ToString(CultureInfo.CurrentCulture) ?? Empty;
         }
 
         private void btnkapat_Click(object sender, EventArgs e)
         {
-            this.Close();
+            Close();
         }
 
         private void btnAsagial_Click(object sender, EventArgs e)
         {
-            this.WindowState = FormWindowState.Minimized;
+            WindowState = FormWindowState.Minimized;
         }
     }
 }

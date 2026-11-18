@@ -1,4 +1,4 @@
-﻿namespace SaglikTakip
+﻿namespace SaglikTakip.UI
 {
     partial class EgzersizKayitForm
     {
@@ -55,7 +55,7 @@
             // textBox1
             // 
             this.textBox1.Location = new System.Drawing.Point(273, 105);
-            this.textBox1.MaxLength = 500;
+            this.textBox1.MaxLength = 100;
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(121, 20);
             this.textBox1.TabIndex = 1;
@@ -151,7 +151,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(95)))), ((int)(((byte)(108)))), ((int)(((byte)(140)))));
-            this.BackgroundImage = global::SaglikTakip.Properties.Resources.Background;
+            this.BackgroundImage = global::SaglikTakip.UI.Properties.Resources.Background;
             this.ClientSize = new System.Drawing.Size(478, 226);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.btnkapat);
