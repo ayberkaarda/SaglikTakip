@@ -1,4 +1,7 @@
+using System.Data;
+using System.Globalization;
 using System.Reflection;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -48,10 +51,7 @@ internal static class LegacySchemaUpgrader
             {
                 await using var transaction = await context.Database.BeginTransactionAsync(token).ConfigureAwait(false);
 
-                await ExecuteAsync(
-                    context,
-                    "EXEC sp_getapplock @Resource = N'SaglikTakip.LegacySchemaUpgrade', @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 60000;",
-                    token).ConfigureAwait(false);
+                await AcquireUpgradeLockAsync(context, token).ConfigureAwait(false);
 
                 // Another process may have finished the upgrade while this one waited for the lock.
                 if (!await IsLegacyAsync(context, token).ConfigureAwait(false))
@@ -74,6 +74,47 @@ internal static class LegacySchemaUpgrader
             },
             verifySucceeded: null,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Takes the transaction scoped application lock that serializes upgrades. sp_getapplock reports
+    /// failures through its return code instead of raising an error, so the code is checked and the
+    /// upgrade stops before any schema statement runs when the lock was not granted.
+    /// </summary>
+    private static async Task AcquireUpgradeLockAsync(HealthDbContext db, CancellationToken cancellationToken)
+    {
+        var result = new SqlParameter("@result", SqlDbType.Int) { Direction = ParameterDirection.Output };
+#pragma warning disable EF1002 // Constant statement; the only parameter is the output value.
+        await db.Database.ExecuteSqlRawAsync(
+            "EXEC @result = sp_getapplock @Resource = N'SaglikTakip.LegacySchemaUpgrade', @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 60000;",
+            [result],
+            cancellationToken).ConfigureAwait(false);
+#pragma warning restore EF1002
+
+        EnsureLockGranted(result.Value is int code ? code : null);
+    }
+
+    /// <summary>Throws when an sp_getapplock return code means the lock was not granted.</summary>
+    internal static void EnsureLockGranted(int? returnCode)
+    {
+        if (returnCode is >= 0)
+        {
+            return;
+        }
+
+        var reason = returnCode switch
+        {
+            -1 => "the request timed out because another upgrade is still running",
+            -2 => "the request was canceled",
+            -3 => "the request was chosen as a deadlock victim",
+            -999 => "the lock request was invalid",
+            null => "the lock procedure returned no result",
+            _ => "the lock procedure failed",
+        };
+
+        throw new InvalidOperationException(
+            $"The legacy database upgrade lock could not be acquired ({reason}, sp_getapplock returned "
+            + $"{(returnCode?.ToString(CultureInfo.InvariantCulture) ?? "null")}). No changes were made; try again later.");
     }
 
     private static async Task<bool> IsLegacyAsync(HealthDbContext db, CancellationToken cancellationToken)
