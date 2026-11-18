@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
@@ -9,6 +10,7 @@ namespace SaglikTakip.UI
     public partial class Raporekleform : Form
     {
         private const string Empty = "—";
+        private const string Loading = "Yükleniyor…";
 
         private static readonly Dictionary<string, string> HealthRecordColumns = new()
         {
@@ -27,6 +29,7 @@ namespace SaglikTakip.UI
 
         private readonly IUserService _userService;
         private readonly IReportService _reportService;
+        private readonly RequestSequence _reportRequests = new();
 
         public Raporekleform(IUserService userService, IReportService reportService)
         {
@@ -51,12 +54,67 @@ namespace SaglikTakip.UI
 
         private async void comboBox1_SelectedIndexChanged(object? sender, EventArgs e)
         {
+            await ShowSelectedUserAsync();
+        }
+
+        /// <summary>
+        /// Loads the report of the selected user. The previous report is cleared at once, and a
+        /// response is shown only while its request is still the latest one, so a slow response for an
+        /// earlier selection can never overwrite the current one.
+        /// </summary>
+        internal async Task ShowSelectedUserAsync()
+        {
+            var request = _reportRequests.Next();
             if (comboBox1.SelectedItem is not User user)
             {
+                ClearReport(string.Empty);
+                UseWaitCursor = false;
                 return;
             }
 
-            await this.RunAsync(async () => ShowReport(await _reportService.GetUserReportAsync(user.Id)));
+            ClearReport(Loading);
+            UseWaitCursor = true;
+            try
+            {
+                var report = await _reportService.GetUserReportAsync(user.Id);
+                if (_reportRequests.IsLatest(request))
+                {
+                    ShowReport(report);
+                }
+            }
+#pragma warning disable CA1031 // UI boundary: every failure is reported to the user.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                if (_reportRequests.IsLatest(request))
+                {
+                    // Never leave a previous user's report on screen next to this user's name.
+                    ClearReport(Empty);
+                    ErrorReporter.Show(ex, this);
+                }
+                else
+                {
+                    Trace.TraceWarning(ErrorReporter.FormatForLog(ex));
+                }
+            }
+            finally
+            {
+                if (_reportRequests.IsLatest(request))
+                {
+                    UseWaitCursor = false;
+                }
+            }
+        }
+
+        private void ClearReport(string placeholder)
+        {
+            dataSaglikKaydi.DataSource = null;
+            dataSporKaydi.DataSource = null;
+
+            foreach (var label in new[] { lblKilo, lblNabiz, lblNot, lblTarih, lblEgzersiz, lblSure, lblTekrar })
+            {
+                label.Text = placeholder;
+            }
         }
 
         private void ShowReport(UserReport report)
