@@ -1,5 +1,7 @@
 using System.Data.Common;
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using SaglikTakip.Business;
 using SaglikTakip.Data.Persistence;
 
@@ -9,6 +11,9 @@ namespace SaglikTakip.UI.Infrastructure;
 internal static class ErrorReporter
 {
     private const string Caption = "Sağlık Takip";
+    private const int MaxLoggedExceptions = 8;
+
+    internal const string UnexpectedErrorMessage = "Beklenmeyen bir hata oluştu. İşleminiz tamamlanamamış olabilir.";
 
     public static void Show(Exception? exception, IWin32Window? owner = null)
     {
@@ -23,8 +28,51 @@ internal static class ErrorReporter
             return;
         }
 
-        Trace.TraceError(exception.ToString());
+        Trace.TraceError(FormatForLog(exception));
         MessageBox.Show(owner, Describe(exception), Caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+
+    /// <summary>
+    /// Builds a log entry that carries no exception messages and no file paths: exception messages
+    /// can contain server names, connection details or personal data. Only the exception types, their
+    /// error codes and the methods of each stack frame are written, for the whole inner exception chain.
+    /// </summary>
+    public static string FormatForLog(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        var builder = new StringBuilder();
+        var depth = 0;
+        for (Exception? current = exception; current is not null && depth < MaxLoggedExceptions; depth++)
+        {
+            if (depth > 0)
+            {
+                builder.AppendLine("--- inner exception ---");
+            }
+
+            builder.Append(current.GetType().FullName)
+                .Append(" (HResult 0x")
+                .Append(current.HResult.ToString("X8", CultureInfo.InvariantCulture))
+                .AppendLine(")");
+
+            foreach (var frame in new StackTrace(current, fNeedFileInfo: false).GetFrames())
+            {
+                var method = frame.GetMethod();
+                if (method is not null)
+                {
+                    builder.Append("   at ")
+                        .Append(method.DeclaringType?.FullName ?? "<unknown>")
+                        .Append('.')
+                        .AppendLine(method.Name);
+                }
+            }
+
+            current = current is AggregateException { InnerExceptions.Count: > 0 } aggregate
+                ? aggregate.InnerExceptions[0]
+                : current.InnerException;
+        }
+
+        return builder.ToString();
     }
 
     public static string Describe(Exception exception)
@@ -47,7 +95,7 @@ internal static class ErrorReporter
             return "İşlem zaman aşımına uğradı. Lütfen tekrar deneyin.";
         }
 
-        return "Beklenmeyen bir hata oluştu. İşleminiz tamamlanamamış olabilir.\n\nAyrıntı: " + exception.Message;
+        return UnexpectedErrorMessage;
     }
 
     private static T? Find<T>(Exception exception)

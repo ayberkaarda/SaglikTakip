@@ -32,6 +32,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SaglikTakip.UI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SaglikTakip.Business\SaglikTakip.Business.csproj" />
     <ProjectReference Include="..\SaglikTakip.Data\SaglikTakip.Data.csproj" />
   </ItemGroup>
