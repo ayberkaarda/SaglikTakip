@@ -9,6 +9,7 @@ namespace SaglikTakip.UI
     {
         private readonly IUserService _userService;
         private readonly IHealthRecordService _healthRecordService;
+        private readonly ExclusiveOperation _save = new();
 
         public SaglikKayitForm(IUserService userService, IHealthRecordService healthRecordService)
         {
@@ -24,14 +25,20 @@ namespace SaglikTakip.UI
 
         private async void btnKaydet_Click(object sender, EventArgs e)
         {
-            if (comboBox1.SelectedItem is not User user)
-            {
-                MessageBox.Show("Lütfen bir kullanıcı seçin.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            await SaveAsync();
+        }
 
-            await this.RunAsync(async () =>
+        /// <summary>Saves the entered measurement; ignored while a previous save is still pending.</summary>
+        internal Task SaveAsync()
+        {
+            return this.RunExclusiveAsync(_save, async () =>
             {
+                if (comboBox1.SelectedItem is not User user)
+                {
+                    MessageBox.Show(this, "Lütfen bir kullanıcı seçin.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 await _healthRecordService.AddAsync(
                     user.Id,
                     dateTimePicker1.Value,
@@ -39,8 +46,9 @@ namespace SaglikTakip.UI
                     (int)numericUpDown2.Value,
                     textBox1.Text);
 
-                MessageBox.Show("Sağlık kaydı eklendi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            });
+                MessageBox.Show(this, "Sağlık kaydı eklendi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            },
+            btnKaydet, btnkapat, comboBox1, dateTimePicker1, numericUpDown1, numericUpDown2, textBox1);
         }
 
         private void btnkapat_Click(object sender, EventArgs e)

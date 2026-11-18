@@ -9,6 +9,7 @@ namespace SaglikTakip.UI
     {
         private readonly IUserService _userService;
         private readonly IExerciseService _exerciseService;
+        private readonly ExclusiveOperation _save = new();
 
         public EgzersizKayitForm(IUserService userService, IExerciseService exerciseService)
         {
@@ -24,20 +25,26 @@ namespace SaglikTakip.UI
 
         private async void btnKaydet_Click(object sender, EventArgs e)
         {
-            if (comboBox1.SelectedItem is not User user)
-            {
-                MessageBox.Show("Lütfen bir kullanıcı seçiniz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            await SaveAsync();
+        }
 
-            if (string.IsNullOrWhiteSpace(textBox1.Text))
+        /// <summary>Saves the entered exercise; ignored while a previous save is still pending.</summary>
+        internal Task SaveAsync()
+        {
+            return this.RunExclusiveAsync(_save, async () =>
             {
-                MessageBox.Show("Egzersiz adını giriniz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+                if (comboBox1.SelectedItem is not User user)
+                {
+                    MessageBox.Show(this, "Lütfen bir kullanıcı seçiniz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
 
-            await this.RunAsync(async () =>
-            {
+                if (string.IsNullOrWhiteSpace(textBox1.Text))
+                {
+                    MessageBox.Show(this, "Egzersiz adını giriniz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 await _exerciseService.AddAsync(
                     user.Id,
                     textBox1.Text,
@@ -50,7 +57,8 @@ namespace SaglikTakip.UI
                 numericUpDown1.Value = 0;
                 numericUpDown2.Value = 0;
                 comboBox1.SelectedIndex = -1;
-            });
+            },
+            btnKaydet, btnkapat, comboBox1, textBox1, numericUpDown1, numericUpDown2);
         }
 
         private void btnkapat_Click(object sender, EventArgs e)

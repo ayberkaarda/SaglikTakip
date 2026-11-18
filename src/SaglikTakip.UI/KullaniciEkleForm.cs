@@ -8,6 +8,7 @@ namespace SaglikTakip.UI
     public partial class KullaniciEkleForm : Form
     {
         private readonly IUserService _userService;
+        private readonly ExclusiveOperation _save = new();
 
         public KullaniciEkleForm(IUserService userService)
         {
@@ -22,14 +23,20 @@ namespace SaglikTakip.UI
 
         private async void btnKaydet_Click(object sender, EventArgs e)
         {
-            if (!int.TryParse(textBoxyas.Text, NumberStyles.None, CultureInfo.CurrentCulture, out var age))
-            {
-                MessageBox.Show("Lütfen geçerli bir yaş girin.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            await SaveAsync();
+        }
 
-            await this.RunAsync(async () =>
+        /// <summary>Saves the entered user; ignored while a previous save is still pending.</summary>
+        internal Task SaveAsync()
+        {
+            return this.RunExclusiveAsync(_save, async () =>
             {
+                if (!int.TryParse(textBoxyas.Text, NumberStyles.None, CultureInfo.CurrentCulture, out var age))
+                {
+                    MessageBox.Show(this, "Lütfen geçerli bir yaş girin.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 await _userService.AddAsync(textBoxad.Text, age, comboBoxcins.SelectedItem?.ToString());
 
                 MessageBox.Show("Kullanıcı kaydedildi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -38,7 +45,8 @@ namespace SaglikTakip.UI
                 textBoxyas.Text = "Yaş";
                 comboBoxcins.SelectedIndex = -1;
                 comboBoxcins.Text = "Cinsiyet";
-            });
+            },
+            btnKaydet, btnkapat, textBoxad, textBoxyas, comboBoxcins);
         }
 
         private void btnkapat_Click(object sender, EventArgs e)

@@ -31,6 +31,23 @@ internal static class UiExtensions
         }
     }
 
+    /// <summary>
+    /// Like <see cref="RunAsync"/>, but through <paramref name="operation"/>: while a run is pending a
+    /// new call is ignored and <paramref name="controls"/> stay disabled, so a write cannot be started twice.
+    /// </summary>
+    public static Task<bool> RunExclusiveAsync(
+        this Form form,
+        ExclusiveOperation operation,
+        Func<Task> action,
+        params Control[] controls)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(action);
+
+        return operation.RunAsync(() => form.RunAsync(action), controls);
+    }
+
     /// <summary>Fills a user picker; items are <see cref="User"/> objects shown by their display name.</summary>
     public static async Task LoadUsersAsync(this ComboBox comboBox, IUserService userService)
     {
