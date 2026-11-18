@@ -4,13 +4,20 @@ Bu uygulama, kullanıcıların sağlık verilerini (kilo, nabız vb.) kaydetmek,
 
 ## 🔧 Kurulum Talimatları
 
-1. **Veritabanını Yükleme**  
-   Proje klasörü içerisindeki `SaglikTakip.bak` dosyasını SQL Server sunucunuza **restore** edin.
+Gereksinimler: .NET 10 SDK ve SQL Server (Express yeterli).
 
-2. **Projenin Yapılandırılması**  
-   - Visual Studio ile projeyi açın.  
-   - `DatabaseHelper.cs` dosyasını kendi SQL Server bağlantı bilgilerinizle güncelleyin.  
-   - Yapılandırma tamamlandıktan sonra projeyi çalıştırabilirsiniz.
+1. **Bağlantı ayarı**  
+   `src/SaglikTakip.UI/appsettings.example.json` dosyasını aynı klasöre `appsettings.json` adıyla kopyalayıp bağlantı bilgisini girin
+   (ya da `dotnet user-secrets set ConnectionStrings:SaglikTakip "<bağlantı>" --project src/SaglikTakip.UI` veya
+   `SAGLIKTAKIP_CONNECTION` ortam değişkeni).
+
+2. **Çalıştırma**  
+   `dotnet run --project src/SaglikTakip.UI`  
+   Veritabanı ilk açılışta EF Core migration'larıyla oluşturulur. Eski sürümün oluşturduğu bir veritabanı
+   kayıtları korunarak yerinde yükseltilir.
+
+3. **Testler**  
+   `dotnet test` (SQL Server gerektiren testleri atlamak için `SAGLIKTAKIP_SKIP_SQL_TESTS=1`).
 
 ## 🧭 Ana Menü Özellikleri
 
