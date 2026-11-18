@@ -1,13 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-public class Egzersiz
+﻿namespace SaglikTakip.Domain.Entities;
+
+/// <summary>An exercise performed by a user (table: Egzersizler).</summary>
+public sealed class Exercise
 {
     public int Id { get; set; }
-    public int KullaniciId { get; set; }
-    public string EgzersizAdi { get; set; }
-    public int SureDakika { get; set; }
-    public int TekrarSayisi { get; set; }
+
+    public int UserId { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public int DurationMinutes { get; set; }
+
+    public int Repetitions { get; set; }
 }

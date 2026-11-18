@@ -1,14 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace SaglikTakip.Domain.Entities;
 
-public class Kullanici
+/// <summary>A person whose health records and exercises are tracked (table: Kullanicilar).</summary>
+public sealed class User
 {
     public int Id { get; set; }
-    public string Ad { get; set; }
-    public int Yas { get; set; }
-    public string Cinsiyet { get; set; }
-}
 
+    public string Name { get; set; } = string.Empty;
+
+    public int Age { get; set; }
+
+    /// <summary>One of <see cref="Genders.All"/>.</summary>
+    public string Gender { get; set; } = string.Empty;
+
+    /// <summary>Text shown in the user pickers, for example "Ayşe - 30 Yaş - Kadın".</summary>
+    public string DisplayName => $"{Name} - {Age} Yaş - {Gender}";
+
+    public override string ToString() => DisplayName;
+}
