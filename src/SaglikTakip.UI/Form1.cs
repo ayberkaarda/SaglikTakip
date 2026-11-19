@@ -30,7 +30,11 @@ namespace SaglikTakip.UI
             _reminderTimer = new System.Windows.Forms.Timer(components) { Interval = ReminderCheckIntervalMilliseconds };
             _reminderTimer.Tick += async (_, _) => await CheckRemindersAsync();
             Shown += async (_, _) => await StartRemindersAsync();
-            FormClosed += (_, _) => _notifier?.Dispose();
+            FormClosed += (_, _) =>
+            {
+                _reminderTimer.Stop();
+                _notifier?.Dispose();
+            };
         }
 
         private void btnKullaniciEkle_Click(object sender, EventArgs e)
