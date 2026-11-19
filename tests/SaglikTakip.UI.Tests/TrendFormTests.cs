@@ -64,6 +64,24 @@ public sealed class TrendFormTests
     });
 
     [Fact]
+    public void Loading_IsShownUntilTheAnswerArrives() => Run(() =>
+    {
+        var trends = new ControlledTrendService();
+        using var form = new TrendForm(new PendingUserService(), trends, new ControlledGoalService { AnswerImmediately = true });
+        var picker = Find<ComboBox>(form, "userPicker");
+        var chart = Find<TrendChart>(form, "trendChart");
+        picker.Items.Add(new User { Id = 1, Name = "Ali", Age = 40, Gender = Genders.Male });
+
+        picker.SelectedIndex = 0;
+        Assert.True(chart.IsLoading);
+        Assert.Equal(TrendForm.Loading, chart.EmptyText);
+
+        trends.Respond(1);
+        Assert.False(chart.IsLoading);
+        Assert.Equal(TrendForm.NoData, chart.EmptyText); // An empty range explains itself.
+    });
+
+    [Fact]
     public void Chart_RendersOffscreenWithAndWithoutData() => Run(() =>
     {
         using var chart = new TrendChart { Size = new Size(400, 240) };
