@@ -36,6 +36,7 @@
             this.cikis = new System.Windows.Forms.Button();
             this.btnkapat = new System.Windows.Forms.Button();
             this.btnAsagial = new System.Windows.Forms.Button();
+            this.btnTrend = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnKullaniciEkle
@@ -85,7 +86,7 @@
             // cikis
             // 
             this.cikis.Font = new System.Drawing.Font("Segoe UI Semibold", 12F, System.Drawing.FontStyle.Bold);
-            this.cikis.Location = new System.Drawing.Point(150, 240);
+            this.cikis.Location = new System.Drawing.Point(150, 401);
             this.cikis.Name = "cikis";
             this.cikis.Size = new System.Drawing.Size(121, 32);
             this.cikis.TabIndex = 4;
@@ -122,14 +123,26 @@
             this.btnAsagial.Text = "-";
             this.btnAsagial.UseVisualStyleBackColor = false;
             this.btnAsagial.Click += new System.EventHandler(this.btnAsagial_Click);
-            // 
+            //
+            // btnTrend
+            //
+            this.btnTrend.Font = new System.Drawing.Font("Segoe UI Semibold", 12F, System.Drawing.FontStyle.Bold);
+            this.btnTrend.Location = new System.Drawing.Point(70, 227);
+            this.btnTrend.Name = "btnTrend";
+            this.btnTrend.Size = new System.Drawing.Size(116, 57);
+            this.btnTrend.TabIndex = 5;
+            this.btnTrend.Text = "Trend Grafikleri";
+            this.btnTrend.UseVisualStyleBackColor = true;
+            this.btnTrend.Click += new System.EventHandler(this.btnTrend_Click);
+            //
             // Form1
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.ClientSize = new System.Drawing.Size(419, 301);
+            this.ClientSize = new System.Drawing.Size(419, 461);
+            this.Controls.Add(this.btnTrend);
             this.Controls.Add(this.btnkapat);
             this.Controls.Add(this.btnAsagial);
             this.Controls.Add(this.cikis);
@@ -156,6 +169,7 @@
         private System.Windows.Forms.Button cikis;
         private System.Windows.Forms.Button btnkapat;
         private System.Windows.Forms.Button btnAsagial;
+        private System.Windows.Forms.Button btnTrend;
     }
 }
 

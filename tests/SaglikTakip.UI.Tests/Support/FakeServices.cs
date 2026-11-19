@@ -1,3 +1,4 @@
+using SaglikTakip.Business.Insights;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 
@@ -77,5 +78,38 @@ internal sealed class ControlledReportService : IReportService
             User = user,
             HealthRecords = [new HealthRecord { UserId = user.Id, Date = new DateTime(2026, 1, 2), Weight = weight, Pulse = 70 }],
             Exercises = [],
+        });
+}
+
+/// <summary>Trend service whose responses are completed by the test, in any order.</summary>
+internal sealed class ControlledTrendService : ITrendService
+{
+    private readonly Dictionary<int, TaskCompletionSource<MetricTrend>> _requests = [];
+
+    public int Calls { get; private set; }
+
+    public Task<MetricTrend> GetTrendAsync(
+        int userId,
+        HealthMetric metric,
+        DateTime firstDay,
+        DateTime lastDay,
+        int movingAverageWindow,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        var request = new TaskCompletionSource<MetricTrend>();
+        _requests[userId] = request;
+        return request.Task;
+    }
+
+    public void Respond(int userId, params double[] values) =>
+        _requests[userId].SetResult(new MetricTrend
+        {
+            Metric = HealthMetric.Weight,
+            From = new DateTime(2026, 1, 1),
+            To = new DateTime(2026, 1, 31),
+            MovingAverageWindow = 1,
+            Points = values.Select((v, i) => new TrendPoint(new DateTime(2026, 1, 1).AddDays(i), v, 1, v)).ToList(),
+            Summary = values.Length == 0 ? null : new MetricSummary(values.Length, values.Min(), values.Max(), values.Average(), values[0], values[^1]),
         });
 }

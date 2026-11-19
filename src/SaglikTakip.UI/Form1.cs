@@ -33,6 +33,11 @@ namespace SaglikTakip.UI
             OpenDialog<Raporekleform>();
         }
 
+        private void btnTrend_Click(object sender, EventArgs e)
+        {
+            OpenDialog<TrendForm>();
+        }
+
         private void cikis_Click(object sender, EventArgs e)
         {
             Application.Exit();
