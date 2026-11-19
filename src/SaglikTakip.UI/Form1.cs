@@ -38,6 +38,11 @@ namespace SaglikTakip.UI
             OpenDialog<TrendForm>();
         }
 
+        private void btnHedef_Click(object sender, EventArgs e)
+        {
+            OpenDialog<HedefForm>();
+        }
+
         private void cikis_Click(object sender, EventArgs e)
         {
             Application.Exit();

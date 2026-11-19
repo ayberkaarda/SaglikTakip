@@ -37,6 +37,7 @@
             this.btnkapat = new System.Windows.Forms.Button();
             this.btnAsagial = new System.Windows.Forms.Button();
             this.btnTrend = new System.Windows.Forms.Button();
+            this.btnHedef = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnKullaniciEkle
@@ -135,6 +136,17 @@
             this.btnTrend.UseVisualStyleBackColor = true;
             this.btnTrend.Click += new System.EventHandler(this.btnTrend_Click);
             //
+            // btnHedef
+            //
+            this.btnHedef.Font = new System.Drawing.Font("Segoe UI Semibold", 12F, System.Drawing.FontStyle.Bold);
+            this.btnHedef.Location = new System.Drawing.Point(237, 227);
+            this.btnHedef.Name = "btnHedef";
+            this.btnHedef.Size = new System.Drawing.Size(116, 57);
+            this.btnHedef.TabIndex = 6;
+            this.btnHedef.Text = "Hedefler";
+            this.btnHedef.UseVisualStyleBackColor = true;
+            this.btnHedef.Click += new System.EventHandler(this.btnHedef_Click);
+            //
             // Form1
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -142,6 +154,7 @@
             this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
             this.ClientSize = new System.Drawing.Size(419, 461);
+            this.Controls.Add(this.btnHedef);
             this.Controls.Add(this.btnTrend);
             this.Controls.Add(this.btnkapat);
             this.Controls.Add(this.btnAsagial);
@@ -170,6 +183,7 @@
         private System.Windows.Forms.Button btnkapat;
         private System.Windows.Forms.Button btnAsagial;
         private System.Windows.Forms.Button btnTrend;
+        private System.Windows.Forms.Button btnHedef;
     }
 }
 

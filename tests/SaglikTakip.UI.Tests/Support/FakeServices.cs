@@ -1,5 +1,6 @@
 using SaglikTakip.Business.Insights;
 using SaglikTakip.Business.Services;
+using SaglikTakip.Business.Validation;
 using SaglikTakip.Domain.Entities;
 
 namespace SaglikTakip.UI.Tests.Support;
@@ -78,6 +79,59 @@ internal sealed class ControlledReportService : IReportService
             User = user,
             HealthRecords = [new HealthRecord { UserId = user.Id, Date = new DateTime(2026, 1, 2), Weight = weight, Pulse = 70 }],
             Exercises = [],
+        });
+}
+
+/// <summary>
+/// Goal service whose status answers are completed by the test (or immediately with "no goal" when
+/// <see cref="AnswerImmediately"/> is set) and whose writes never complete.
+/// </summary>
+internal sealed class ControlledGoalService : IGoalService
+{
+    private readonly Dictionary<int, TaskCompletionSource<GoalStatus?>> _requests = [];
+    private readonly TaskCompletionSource<HealthGoal> _pendingSave = new();
+
+    public bool AnswerImmediately { get; init; }
+
+    public int SaveCalls { get; private set; }
+
+    public List<(int UserId, GoalInput Input)> Saved { get; } = [];
+
+    public Task<HealthGoal?> GetAsync(int userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<HealthGoal?>(null);
+
+    public Task<HealthGoal> SaveAsync(int userId, GoalInput input, CancellationToken cancellationToken = default)
+    {
+        SaveCalls++;
+        Saved.Add((userId, input));
+        return _pendingSave.Task;
+    }
+
+    public Task<bool> DeleteAsync(int userId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    public Task<GoalStatus?> GetStatusAsync(int userId, DateTime firstDay, DateTime lastDay, CancellationToken cancellationToken = default)
+    {
+        if (AnswerImmediately)
+        {
+            return Task.FromResult<GoalStatus?>(null);
+        }
+
+        var request = new TaskCompletionSource<GoalStatus?>();
+        _requests[userId] = request;
+        return request.Task;
+    }
+
+    public Task<IReadOnlyList<ThresholdAlert>> CheckAsync(HealthRecord record, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ThresholdAlert>>([]);
+
+    public void Respond(int userId, double targetWeight) =>
+        _requests[userId].SetResult(new GoalStatus
+        {
+            Goal = new HealthGoal { UserId = userId, TargetWeight = targetWeight },
+            CurrentWeight = null,
+            CurrentWeightDate = null,
+            ProgressPercent = null,
+            Alerts = [],
         });
 }
 

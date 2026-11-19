@@ -52,7 +52,7 @@ public sealed class SaglikKayitFormTests
     public void Save_WhilePending_DoesNotInsertTwice() => Run(() =>
     {
         var records = new PendingHealthRecordService();
-        using var form = new SaglikKayitForm(new PendingUserService(), records);
+        using var form = new SaglikKayitForm(new PendingUserService(), records, new ControlledGoalService { AnswerImmediately = true });
         var picker = Find<ComboBox>(form, "comboBox1");
         picker.Items.Add(new User { Id = 1, Name = "Ayşe", Age = 30, Gender = Genders.Female });
         picker.SelectedIndex = 0;

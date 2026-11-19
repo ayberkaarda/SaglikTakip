@@ -16,6 +16,7 @@ namespace SaglikTakip.UI
 
         private readonly IUserService _userService;
         private readonly ITrendService _trendService;
+        private readonly IGoalService _goalService;
         private readonly RequestSequence _trendRequests = new();
 
         private readonly ComboBox _userPicker = FormLayout.UserPicker();
@@ -33,11 +34,14 @@ namespace SaglikTakip.UI
 
         private readonly TrendChart _chart = new() { Name = "trendChart", Dock = DockStyle.Fill };
         private readonly Label _summary = FormLayout.Value("summaryLabel");
+        private readonly Label _goal = FormLayout.Value("goalLabel");
+        private readonly ListBox _alerts = new() { Name = "alertList", Dock = DockStyle.Fill, IntegralHeight = false };
 
-        public TrendForm(IUserService userService, ITrendService trendService)
+        public TrendForm(IUserService userService, ITrendService trendService, IGoalService goalService)
         {
             _userService = userService;
             _trendService = trendService;
+            _goalService = goalService;
 
             var today = DateTime.Today;
             _from = FormLayout.DatePicker("fromPicker", today.AddDays(-29));
@@ -75,10 +79,12 @@ namespace SaglikTakip.UI
             UseWaitCursor = true;
             try
             {
-                var trend = await _trendService.GetTrendAsync(user.Id, metric.Metric, _from.Value, _to.Value, (int)_window.Value);
+                var trendTask = _trendService.GetTrendAsync(user.Id, metric.Metric, _from.Value, _to.Value, (int)_window.Value);
+                var goalTask = _goalService.GetStatusAsync(user.Id, _from.Value, _to.Value);
+                await Task.WhenAll(trendTask, goalTask);
                 if (_trendRequests.IsLatest(request))
                 {
-                    ShowTrend(trend, metric);
+                    ShowTrend(await trendTask, await goalTask, metric);
                 }
             }
             catch (BusinessRuleException ex) when (_trendRequests.IsLatest(request))
@@ -113,13 +119,37 @@ namespace SaglikTakip.UI
         {
             _chart.Clear(text);
             _summary.Text = string.Empty;
+            _goal.Text = string.Empty;
+            _alerts.Items.Clear();
         }
 
-        private void ShowTrend(MetricTrend trend, MetricOption metric)
+        private void ShowTrend(MetricTrend trend, GoalStatus? status, MetricOption metric)
         {
+            var goal = status?.Goal;
+            var (lower, upper) = metric.Metric == HealthMetric.Weight
+                ? (goal?.MinWeight, goal?.MaxWeight)
+                : ((double?)goal?.MinPulse, (double?)goal?.MaxPulse);
+
             _chart.EmptyText = "Seçilen aralıkta ölçüm yok.";
-            _chart.SetData(trend.Points);
+            _chart.SetData(trend.Points, lower, upper);
             _summary.Text = DescribeSummary(trend, metric.Unit);
+            _goal.Text = status is null
+                ? "Hedef tanımlı değil."
+                : HedefForm.DescribeStatus(status);
+
+            _alerts.BeginUpdate();
+            try
+            {
+                _alerts.Items.Clear();
+                foreach (var alert in status?.Alerts.Where(a => a.Metric == metric.Metric) ?? [])
+                {
+                    _alerts.Items.Add(GoalEvaluator.Describe(alert, CultureInfo.CurrentCulture));
+                }
+            }
+            finally
+            {
+                _alerts.EndUpdate();
+            }
         }
 
         internal static string DescribeSummary(MetricTrend trend, string unit)
@@ -157,10 +187,18 @@ namespace SaglikTakip.UI
                 FormLayout.Caption("Bitiş"), _to,
                 FormLayout.Caption("Hareketli ortalama (gün)"), _window);
 
-            var summaryRow = FormLayout.Row(_summary);
+            var summaryRow = FormLayout.Row(_summary, _goal);
+            summaryRow.FlowDirection = FlowDirection.TopDown;
             summaryRow.Dock = DockStyle.Bottom;
 
+            var alertPanel = new Panel { Dock = DockStyle.Right, Width = 260, Padding = new Padding(4) };
+            var alertCaption = FormLayout.Caption("Hedef sınırı dışındaki ölçümler");
+            alertCaption.Dock = DockStyle.Top;
+            alertPanel.Controls.Add(_alerts);
+            alertPanel.Controls.Add(alertCaption);
+
             Controls.Add(_chart);
+            Controls.Add(alertPanel);
             Controls.Add(summaryRow);
             Controls.Add(filters);
             _chart.Clear(NoUser);

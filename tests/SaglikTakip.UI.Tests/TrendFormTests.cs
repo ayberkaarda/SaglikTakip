@@ -12,7 +12,7 @@ public sealed class TrendFormTests
     public void SelectionChanged_OutOfOrderResponses_KeepLatestSelection() => Run(() =>
     {
         var trends = new ControlledTrendService();
-        using var form = new TrendForm(new PendingUserService(), trends);
+        using var form = new TrendForm(new PendingUserService(), trends, new ControlledGoalService { AnswerImmediately = true });
         var picker = Find<ComboBox>(form, "userPicker");
         var chart = Find<TrendChart>(form, "trendChart");
         picker.Items.Add(new User { Id = 1, Name = "Ali", Age = 40, Gender = Genders.Male });
@@ -33,7 +33,7 @@ public sealed class TrendFormTests
     public void NoUserSelected_ShowsHintWithoutCallingTheService() => Run(() =>
     {
         var trends = new ControlledTrendService();
-        using var form = new TrendForm(new PendingUserService(), trends);
+        using var form = new TrendForm(new PendingUserService(), trends, new ControlledGoalService { AnswerImmediately = true });
 
         var load = form.ShowTrendAsync();
 
