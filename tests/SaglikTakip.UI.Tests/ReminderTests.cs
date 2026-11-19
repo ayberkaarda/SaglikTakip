@@ -107,6 +107,28 @@ public sealed class HatirlaticiFormTests
     });
 
     [Fact]
+    public void Complete_WhenDisplayedPendingReminderBecomesDue_UsesCurrentServiceState() => Run(() =>
+    {
+        var due = new DateTime(2026, 1, 5, 10, 0, 0, DateTimeKind.Unspecified);
+        var reminders = new ControlledReminderService();
+        var stale = ControlledReminderService.Item(7, due);
+        reminders.Due.Add(new ReminderItem(stale.Reminder, "Ali", false, 0)); // Loaded at 09:59: not due yet.
+        using var form = new HatirlaticiForm(new PendingUserService(), reminders);
+        _ = form.ReloadAsync();
+        Assert.Equal(1, reminders.GetAllCalls);
+        form.SelectionOverride = reminders.Due[0];
+
+        // The clock passes 10:00 while the screen stays open; the service now reports the row as due.
+        reminders.Due[0] = stale;
+        form.SelectionOverride = new ReminderItem(stale.Reminder, "Ali", false, 0); // Still the stale row on screen.
+        var complete = form.CompleteSelectedAsync();
+
+        Assert.True(complete.IsCompletedSuccessfully);
+        Assert.Equal([(7, due)], reminders.Completed);
+        Assert.Equal(2, reminders.GetAllCalls); // The list is refreshed after the attempt.
+    });
+
+    [Fact]
     public void IntervalUnits_AreConvertedToHours() => Run(() =>
     {
         using var form = new HatirlaticiForm(new PendingUserService(), new ControlledReminderService());

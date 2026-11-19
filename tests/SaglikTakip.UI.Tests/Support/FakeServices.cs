@@ -147,10 +147,17 @@ internal sealed class ControlledReminderService : IReminderService
 
     public int DueCalls { get; private set; }
 
+    public int GetAllCalls { get; private set; }
+
+    public List<(int Id, DateTime ExpectedDueAt)> Completed { get; } = [];
+
     public TaskCompletionSource<IReadOnlyList<ReminderItem>>? PendingDue { get; set; }
 
-    public Task<IReadOnlyList<ReminderItem>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<ReminderItem>>(Due.ToList());
+    public Task<IReadOnlyList<ReminderItem>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        GetAllCalls++;
+        return Task.FromResult<IReadOnlyList<ReminderItem>>(Due.ToList());
+    }
 
     public Task<IReadOnlyList<ReminderItem>> GetDueAsync(CancellationToken cancellationToken = default)
     {
@@ -170,8 +177,11 @@ internal sealed class ControlledReminderService : IReminderService
         return _pendingAdd.Task;
     }
 
-    public Task<bool> CompleteAsync(int id, DateTime expectedDueAt, CancellationToken cancellationToken = default) =>
-        Task.FromResult(false);
+    public Task<bool> CompleteAsync(int id, DateTime expectedDueAt, CancellationToken cancellationToken = default)
+    {
+        Completed.Add((id, expectedDueAt));
+        return Task.FromResult(true);
+    }
 
     public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(false);
 

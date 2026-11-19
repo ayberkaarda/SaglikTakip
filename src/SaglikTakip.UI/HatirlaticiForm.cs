@@ -148,7 +148,7 @@ namespace SaglikTakip.UI
         /// <summary>Marks the selected due reminder as done; ignored while a previous write is still pending.</summary>
         internal async Task CompleteSelectedAsync()
         {
-            var changed = false;
+            var attempted = false;
             await this.RunExclusiveAsync(_write, async () =>
             {
                 if (SelectedItem() is not { } item)
@@ -156,18 +156,16 @@ namespace SaglikTakip.UI
                     return;
                 }
 
-                if (!item.IsDue)
-                {
-                    MessageBox.Show(this, "Bu hatırlatıcının zamanı henüz gelmedi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                changed = await _reminderService.CompleteAsync(item.Reminder.Id, item.Reminder.NextDueAt);
+                // The displayed IsDue can be stale; the service decides against the current time and
+                // returns false when the occurrence is not due (or was already completed).
+                attempted = true;
+                await _reminderService.CompleteAsync(item.Reminder.Id, item.Reminder.NextDueAt);
             },
             WriteControls());
 
-            if (changed)
+            if (attempted)
             {
+                // Refresh either way so a stale row is replaced by the current state.
                 await ReloadAsync();
             }
         }
@@ -210,7 +208,12 @@ namespace SaglikTakip.UI
 
         private Control[] WriteControls() => [_add, _complete, _delete, _refresh, _userPicker, _grid];
 
-        private ReminderItem? SelectedItem() => (_grid.CurrentRow?.DataBoundItem as Row)?.Item;
+        /// <summary>Lets tests choose the row, because a grid that is never shown cannot select one.</summary>
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        internal ReminderItem? SelectionOverride { get; set; }
+
+        private ReminderItem? SelectedItem() => SelectionOverride ?? (_grid.CurrentRow?.DataBoundItem as Row)?.Item;
 
         private void ShowItems(IReadOnlyList<ReminderItem> items)
         {
