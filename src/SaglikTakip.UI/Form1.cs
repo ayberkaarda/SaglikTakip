@@ -68,6 +68,11 @@ namespace SaglikTakip.UI
             OpenDialog<HatirlaticiForm>();
         }
 
+        private void btnDonemRaporu_Click(object sender, EventArgs e)
+        {
+            OpenDialog<DonemRaporuForm>();
+        }
+
         private void cikis_Click(object sender, EventArgs e)
         {
             Application.Exit();

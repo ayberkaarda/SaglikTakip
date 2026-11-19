@@ -1,4 +1,5 @@
 using SaglikTakip.Business.Insights;
+using SaglikTakip.Business.Reporting;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Business.Validation;
 using SaglikTakip.Domain.Entities;
@@ -176,6 +177,40 @@ internal sealed class ControlledReminderService : IReminderService
 
     public static ReminderItem Item(int id, DateTime dueAt, string title = "Tansiyon ölç") =>
         new(new Reminder { Id = id, UserId = 1, Kind = ReminderKind.Measurement, Title = title, IntervalHours = 24, NextDueAt = dueAt }, "Ali", true, 1);
+}
+
+/// <summary>Period report service whose answers are completed by the test, in any order.</summary>
+internal sealed class ControlledPeriodReportService : IPeriodReportService
+{
+    private readonly List<(int UserId, TaskCompletionSource<PeriodReport> Answer)> _requests = [];
+
+    public int BuildCalls => _requests.Count;
+
+    public Task<PeriodReport> BuildAsync(int userId, DateTime firstDay, DateTime lastDay, CancellationToken cancellationToken = default)
+    {
+        var answer = new TaskCompletionSource<PeriodReport>();
+        _requests.Add((userId, answer));
+        return answer.Task;
+    }
+
+    /// <summary>Completes the oldest open request of <paramref name="user"/>.</summary>
+    public void Respond(User user, int measurements)
+    {
+        var (_, answer) = _requests.First(r => r.UserId == user.Id && !r.Answer.Task.IsCompleted);
+        answer.SetResult(new PeriodReport
+        {
+            User = user,
+            From = new DateTime(2026, 1, 1),
+            To = new DateTime(2026, 1, 7),
+            GeneratedAt = new DateTime(2026, 1, 8),
+            Records = Enumerable.Range(1, measurements)
+                .Select(i => new HealthRecord { Id = i, UserId = user.Id, Date = new DateTime(2026, 1, i), Weight = 70, Pulse = 70 })
+                .ToList(),
+            Weight = null,
+            Pulse = null,
+            Goal = null,
+        });
+    }
 }
 
 /// <summary>Trend service whose responses are completed by the test, in any order.</summary>
