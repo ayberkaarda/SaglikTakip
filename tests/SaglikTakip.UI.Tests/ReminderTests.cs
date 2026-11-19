@@ -19,13 +19,13 @@ public sealed class ReminderMonitorTests
         var monitor = new ReminderMonitor(_reminders, _notifier);
         _reminders.Due.Add(ControlledReminderService.Item(1, Nine));
 
-        Assert.Single(await monitor.CheckAsync());
-        Assert.Empty(await monitor.CheckAsync()); // Still due a minute later: no second balloon.
+        Assert.Single(await monitor.CheckAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await monitor.CheckAsync(TestContext.Current.CancellationToken)); // Still due a minute later: no second balloon.
 
         // Marked as done elsewhere and due again at its next time: announced again.
         _reminders.Due.Clear();
         _reminders.Due.Add(ControlledReminderService.Item(1, Nine.AddDays(1)));
-        Assert.Single(await monitor.CheckAsync());
+        Assert.Single(await monitor.CheckAsync(TestContext.Current.CancellationToken));
 
         Assert.Equal(2, _notifier.Batches.Count);
     }
@@ -39,7 +39,7 @@ public sealed class ReminderMonitorTests
         _reminders.Due.Add(ControlledReminderService.Item(2, Nine.AddHours(1), "Yürüyüş"));
 
         monitor.MarkSeen([missed]);
-        var announced = await monitor.CheckAsync();
+        var announced = await monitor.CheckAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal([2], announced.Select(i => i.Reminder.Id));
         Assert.Equal("Yürüyüş", Assert.Single(Assert.Single(_notifier.Batches)).Reminder.Title);
@@ -51,8 +51,8 @@ public sealed class ReminderMonitorTests
         var monitor = new ReminderMonitor(_reminders, _notifier);
         _reminders.PendingDue = new TaskCompletionSource<IReadOnlyList<ReminderItem>>();
 
-        var first = monitor.CheckAsync();
-        var second = await monitor.CheckAsync();
+        var first = monitor.CheckAsync(TestContext.Current.CancellationToken);
+        var second = await monitor.CheckAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(second);
         Assert.Equal(1, _reminders.DueCalls);
@@ -63,7 +63,7 @@ public sealed class ReminderMonitorTests
     [Fact]
     public async Task NoDueReminders_NoBalloon()
     {
-        Assert.Empty(await new ReminderMonitor(_reminders, _notifier).CheckAsync());
+        Assert.Empty(await new ReminderMonitor(_reminders, _notifier).CheckAsync(TestContext.Current.CancellationToken));
         Assert.Empty(_notifier.Batches);
     }
 
@@ -161,5 +161,113 @@ public sealed class HatirlaticiFormTests
         Assert.Equal("Bekliyor", HatirlaticiForm.DescribeStatus(new ReminderItem(reminder, "Ali", false, 0)));
         Assert.Equal("Zamanı geldi", HatirlaticiForm.DescribeStatus(new ReminderItem(reminder, "Ali", true, 1)));
         Assert.Equal("Zamanı geçti (3 kez)", HatirlaticiForm.DescribeStatus(new ReminderItem(reminder, "Ali", true, 3)));
+    }
+}
+
+public sealed class Form1ReminderTests
+{
+    private static readonly DateTime Nine = new(2026, 1, 5, 9, 0, 0, DateTimeKind.Unspecified);
+
+    [Fact]
+    public void Startup_WhenAnotherDialogIsOpen_DoesNotConsumeUnshownReminders() => Run(() =>
+    {
+        var reminders = new ControlledReminderService { PendingDue = new TaskCompletionSource<IReadOnlyList<ReminderItem>>() };
+        var notifier = new RecordingNotifier();
+        var opened = new List<Type>();
+        using var form = NewForm(reminders, notifier, opened);
+
+        var startup = form.StartRemindersAsync();
+        var overdue = ControlledReminderService.Item(1, Nine);
+
+        // The user opens another screen; the startup answer arrives while it is still open.
+        form.DialogHook = type =>
+        {
+            opened.Add(type);
+            reminders.PendingDue.SetResult([overdue]);
+        };
+        form.OpenDialog<HedefForm>();
+        Assert.True(startup.IsCompletedSuccessfully);
+        Assert.Equal([typeof(HedefForm)], opened); // The reminder list was not shown.
+
+        // The screen is closed; the next periodic check must still announce the reminder.
+        reminders.PendingDue = null;
+        reminders.Due.Add(overdue);
+        form.CheckRemindersAsync().GetAwaiter().GetResult();
+
+        Assert.Single(Assert.Single(notifier.Batches));
+    });
+
+    [Fact]
+    public void Startup_WhenListIsShown_MarksRemindersAsSeen() => Run(() =>
+    {
+        var reminders = new ControlledReminderService();
+        reminders.Due.Add(ControlledReminderService.Item(1, Nine));
+        var notifier = new RecordingNotifier();
+        var opened = new List<Type>();
+        using var form = NewForm(reminders, notifier, opened);
+
+        form.StartRemindersAsync().GetAwaiter().GetResult();
+        form.CheckRemindersAsync().GetAwaiter().GetResult();
+
+        Assert.Equal([typeof(HatirlaticiForm)], opened);
+        Assert.Empty(notifier.Batches);
+    });
+
+    [Fact]
+    public void Startup_AfterTheFormIsDisposed_TouchesNothing() => Run(() =>
+    {
+        var reminders = new ControlledReminderService { PendingDue = new TaskCompletionSource<IReadOnlyList<ReminderItem>>() };
+        var notifier = new RecordingNotifier();
+        var opened = new List<Type>();
+        var form = NewForm(reminders, notifier, opened);
+
+        var startup = form.StartRemindersAsync();
+        form.Dispose();
+        reminders.PendingDue.SetResult([ControlledReminderService.Item(1, Nine)]);
+
+        Assert.True(startup.IsCompleted);
+        Assert.Empty(opened);
+        Assert.True(notifier.Disposed);
+    });
+
+    [Fact]
+    public void PeriodicCheck_AfterTheFormIsDisposed_DoesNotNotify() => Run(() =>
+    {
+        var reminders = new ControlledReminderService();
+        var notifier = new RecordingNotifier();
+        var form = NewForm(reminders, notifier, []);
+        form.StartRemindersAsync().GetAwaiter().GetResult();
+
+        reminders.PendingDue = new TaskCompletionSource<IReadOnlyList<ReminderItem>>();
+        var check = form.CheckRemindersAsync();
+        form.Dispose();
+        reminders.PendingDue.SetResult([ControlledReminderService.Item(1, Nine)]);
+
+        Assert.True(check.IsCompleted);
+        Assert.Empty(notifier.Batches);
+    });
+
+    private static Form1 NewForm(ControlledReminderService reminders, RecordingNotifier notifier, List<Type> opened) =>
+        new(new UnusedFormFactory(), reminders)
+        {
+            NotifierFactory = _ => notifier,
+            DialogHook = opened.Add,
+        };
+
+    private sealed class UnusedFormFactory : IFormFactory
+    {
+        public T Create<T>()
+            where T : Form => throw new InvalidOperationException("Dialogs are replaced by the test hook.");
+    }
+
+    private sealed class RecordingNotifier : IReminderNotifier, IDisposable
+    {
+        public List<IReadOnlyList<ReminderItem>> Batches { get; } = [];
+
+        public bool Disposed { get; private set; }
+
+        public void Notify(IReadOnlyList<ReminderItem> reminders) => Batches.Add(reminders);
+
+        public void Dispose() => Disposed = true;
     }
 }

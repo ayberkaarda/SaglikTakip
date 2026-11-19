@@ -32,8 +32,11 @@ internal sealed class ReminderMonitor(IReminderService reminders, IReminderNotif
         }
     }
 
-    /// <summary>Announces due occurrences that were not announced yet; returns them.</summary>
-    public async Task<IReadOnlyList<ReminderItem>> CheckAsync()
+    /// <summary>
+    /// Announces due occurrences that were not announced yet; returns them. When <paramref name="cancellationToken"/>
+    /// is cancelled while the query is pending (the screen was closed), nothing is announced or recorded.
+    /// </summary>
+    public async Task<IReadOnlyList<ReminderItem>> CheckAsync(CancellationToken cancellationToken)
     {
         if (_checking)
         {
@@ -43,7 +46,12 @@ internal sealed class ReminderMonitor(IReminderService reminders, IReminderNotif
         _checking = true;
         try
         {
-            var due = await reminders.GetDueAsync();
+            var due = await reminders.GetDueAsync(cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return [];
+            }
+
             var fresh = due.Where(item => _announced.Add((item.Reminder.Id, item.Reminder.NextDueAt))).ToList();
             if (fresh.Count > 0)
             {

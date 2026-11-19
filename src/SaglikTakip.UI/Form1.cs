@@ -16,7 +16,8 @@ namespace SaglikTakip.UI
         private readonly IFormFactory _formFactory;
         private readonly IReminderService _reminderService;
         private readonly System.Windows.Forms.Timer _reminderTimer;
-        private NotifyIconReminderNotifier? _notifier;
+        private readonly CancellationTokenSource _lifetime = new();
+        private IReminderNotifier? _notifier;
         private ReminderMonitor? _monitor;
         private bool _dialogOpen;
 
@@ -30,11 +31,29 @@ namespace SaglikTakip.UI
             _reminderTimer = new System.Windows.Forms.Timer(components) { Interval = ReminderCheckIntervalMilliseconds };
             _reminderTimer.Tick += async (_, _) => await CheckRemindersAsync();
             Shown += async (_, _) => await StartRemindersAsync();
-            FormClosed += (_, _) =>
+            FormClosed += (_, _) => Shutdown();
+            Disposed += (_, _) => Shutdown();
+        }
+
+        /// <summary>Creates the tray notifier; replaced in tests so no tray icon appears.</summary>
+        internal Func<Icon?, IReminderNotifier> NotifierFactory = icon => new NotifyIconReminderNotifier(icon);
+
+        /// <summary>Shows a dialog of the given type instead of creating and showing it; used by tests.</summary>
+        internal Action<Type>? DialogHook;
+
+        private bool IsClosing => _lifetime.IsCancellationRequested || IsDisposed;
+
+        /// <summary>Stops the reminder work; pending continuations see the cancelled token and do nothing.</summary>
+        private void Shutdown()
+        {
+            if (_lifetime.IsCancellationRequested)
             {
-                _reminderTimer.Stop();
-                _notifier?.Dispose();
-            };
+                return;
+            }
+
+            _lifetime.Cancel();
+            _reminderTimer.Stop();
+            (_notifier as IDisposable)?.Dispose();
         }
 
         private void btnKullaniciEkle_Click(object sender, EventArgs e)
@@ -96,67 +115,100 @@ namespace SaglikTakip.UI
         /// Lists the reminders that came due while the application was closed, then starts the periodic
         /// check. Those occurrences are not announced again by the balloon.
         /// </summary>
-        private async Task StartRemindersAsync()
+        internal async Task StartRemindersAsync()
         {
-            _notifier = new NotifyIconReminderNotifier(Icon);
-            _notifier.Clicked += (_, _) => OpenDialog<HatirlaticiForm>();
+            _notifier = NotifierFactory(Icon);
+            if (_notifier is NotifyIconReminderNotifier trayNotifier)
+            {
+                trayNotifier.Clicked += (_, _) => OpenDialog<HatirlaticiForm>();
+            }
+
             _monitor = new ReminderMonitor(_reminderService, _notifier);
 
             try
             {
-                var missed = await _reminderService.GetDueAsync();
-                _monitor.MarkSeen(missed);
+                var missed = await _reminderService.GetDueAsync(_lifetime.Token);
+                if (IsClosing)
+                {
+                    return;
+                }
+
                 if (missed.Count > 0)
                 {
                     Log.Information("{Count} reminder(s) came due while the application was closed", missed.Count);
-                    OpenDialog<HatirlaticiForm>();
+
+                    // Only occurrences that were actually listed are marked as seen. If another screen is
+                    // open the list is not shown, and the periodic check announces them instead.
+                    if (OpenDialog<HatirlaticiForm>())
+                    {
+                        _monitor.MarkSeen(missed);
+                    }
                 }
             }
 #pragma warning disable CA1031 // Reminders are optional; a failure must not block the main menu.
             catch (Exception ex)
 #pragma warning restore CA1031
             {
-                ErrorReporter.Record(Log.Logger, ex);
+                if (!IsClosing)
+                {
+                    ErrorReporter.Record(Log.Logger, ex);
+                }
             }
             finally
             {
-                _reminderTimer.Start();
+                if (!IsClosing)
+                {
+                    _reminderTimer.Start();
+                }
             }
         }
 
-        private async Task CheckRemindersAsync()
+        internal async Task CheckRemindersAsync()
         {
-            if (_monitor is null)
+            if (_monitor is null || IsClosing)
             {
                 return;
             }
 
             try
             {
-                await _monitor.CheckAsync();
+                await _monitor.CheckAsync(_lifetime.Token);
             }
 #pragma warning disable CA1031 // Runs every minute; failures are logged instead of opening a dialog each time.
             catch (Exception ex)
 #pragma warning restore CA1031
             {
-                ErrorReporter.Record(Log.Logger, ex);
+                if (!IsClosing)
+                {
+                    ErrorReporter.Record(Log.Logger, ex);
+                }
             }
         }
 
-        private void OpenDialog<T>()
+        /// <summary>Opens the screen modally; returns <see langword="false"/> when another screen is already open.</summary>
+        internal bool OpenDialog<T>()
             where T : Form
         {
             // A balloon click while another screen is open must not stack a second modal window.
-            if (_dialogOpen)
+            if (_dialogOpen || IsClosing)
             {
-                return;
+                return false;
             }
 
             _dialogOpen = true;
             try
             {
-                using var form = _formFactory.Create<T>();
-                form.ShowDialog(this);
+                if (DialogHook is { } hook)
+                {
+                    hook(typeof(T));
+                }
+                else
+                {
+                    using var form = _formFactory.Create<T>();
+                    form.ShowDialog(this);
+                }
+
+                return true;
             }
             finally
             {
