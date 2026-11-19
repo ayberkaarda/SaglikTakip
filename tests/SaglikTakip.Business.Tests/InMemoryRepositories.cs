@@ -54,6 +54,26 @@ internal sealed class InMemoryHealthRecordRepository : IHealthRecordRepository
     }
 }
 
+internal sealed class InMemoryHealthGoalRepository : IHealthGoalRepository
+{
+    public List<HealthGoal> Goals { get; } = [];
+
+    public Task<HealthGoal?> GetByUserAsync(int userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Goals.SingleOrDefault(g => g.UserId == userId));
+
+    public Task<int> SaveAsync(HealthGoal goal, CancellationToken cancellationToken = default)
+    {
+        var existing = Goals.SingleOrDefault(g => g.UserId == goal.UserId);
+        goal.Id = existing?.Id ?? Goals.Count + 1;
+        Goals.Remove(existing!);
+        Goals.Add(goal);
+        return Task.FromResult(goal.Id);
+    }
+
+    public Task<bool> DeleteByUserAsync(int userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Goals.RemoveAll(g => g.UserId == userId) > 0);
+}
+
 internal sealed class InMemoryExerciseRepository : IExerciseRepository
 {
     public List<Exercise> Exercises { get; } = [];

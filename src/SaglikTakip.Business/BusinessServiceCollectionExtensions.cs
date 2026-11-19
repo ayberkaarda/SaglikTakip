@@ -22,6 +22,8 @@ public static class BusinessServiceCollectionExtensions
         services.AddSingleton<IExerciseService, ExerciseService>();
         services.AddSingleton<IReportService, ReportService>();
         services.AddSingleton<ITrendService, TrendService>();
+        services.AddSingleton<IValidator<GoalInput>, GoalInputValidator>();
+        services.AddSingleton<IGoalService, GoalService>();
         return services;
     }
 }

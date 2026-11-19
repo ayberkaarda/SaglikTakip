@@ -20,6 +20,18 @@ internal sealed record HealthRecordInput(int UserId, DateTime Date, decimal Weig
     }
 }
 
+/// <summary>
+/// Goal and alert limits entered on the "Hedefler" screen. Every value is optional;
+/// <see langword="null"/> means "not set".
+/// </summary>
+public sealed record GoalInput(
+    decimal? TargetWeight,
+    decimal? StartWeight,
+    decimal? MinWeight,
+    decimal? MaxWeight,
+    int? MinPulse,
+    int? MaxPulse);
+
 /// <summary>An exercise entry. The name is trimmed on creation.</summary>
 internal sealed record ExerciseInput(int UserId, string Name, int DurationMinutes, int Repetitions)
 {

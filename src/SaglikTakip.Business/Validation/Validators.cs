@@ -12,6 +12,9 @@ internal static class Messages
     public const string FutureDate = "Sağlık kaydının tarihi ileri bir tarih olamaz.";
     public const string NoEffort = "Süre veya tekrar sayısından en az biri sıfırdan büyük olmalıdır.";
     public const string InvalidRange = "Başlangıç tarihi bitiş tarihinden sonra olamaz.";
+    public const string EmptyGoal = "En az bir hedef veya sınır girin.";
+    public const string WeightLimitsReversed = "En düşük kilo en yüksek kilodan büyük olamaz.";
+    public const string PulseLimitsReversed = "En düşük nabız en yüksek nabızdan büyük olamaz.";
 
     public static string Required(string fieldName) =>
         string.Format(CultureInfo.CurrentCulture, "{0} alanı boş bırakılamaz.", fieldName);
@@ -101,6 +104,43 @@ internal sealed class HealthRecordInputValidator : AbstractValidator<HealthRecor
             .MaximumLength(MaxNotesLength).WithMessage(_ => Messages.TooLong("Notlar", MaxNotesLength))
             .When(r => r.Notes is not null);
     }
+}
+
+/// <summary>Goal values use the same limits as measurements; minimums may equal maximums.</summary>
+internal sealed class GoalInputValidator : AbstractValidator<GoalInput>
+{
+    public GoalInputValidator()
+    {
+        ClassLevelCascadeMode = CascadeMode.Stop;
+        RuleLevelCascadeMode = CascadeMode.Stop;
+
+        RuleFor(g => g)
+            .Must(g => g.TargetWeight.HasValue || g.StartWeight.HasValue || g.MinWeight.HasValue
+                || g.MaxWeight.HasValue || g.MinPulse.HasValue || g.MaxPulse.HasValue)
+            .WithMessage(Messages.EmptyGoal);
+        WeightRule(g => g.TargetWeight, "Hedef kilo");
+        WeightRule(g => g.StartWeight, "Başlangıç kilosu");
+        WeightRule(g => g.MinWeight, "En düşük kilo");
+        WeightRule(g => g.MaxWeight, "En yüksek kilo");
+        PulseRule(g => g.MinPulse, "En düşük nabız");
+        PulseRule(g => g.MaxPulse, "En yüksek nabız");
+        RuleFor(g => g)
+            .Must(g => g.MinWeight is null || g.MaxWeight is null || g.MinWeight <= g.MaxWeight)
+            .WithMessage(Messages.WeightLimitsReversed);
+        RuleFor(g => g)
+            .Must(g => g.MinPulse is null || g.MaxPulse is null || g.MinPulse <= g.MaxPulse)
+            .WithMessage(Messages.PulseLimitsReversed);
+    }
+
+    private void WeightRule(System.Linq.Expressions.Expression<Func<GoalInput, decimal?>> property, string fieldName) =>
+        RuleFor(property)
+            .Must(value => value is null or (>= HealthRecordInputValidator.MinWeight and <= HealthRecordInputValidator.MaxWeight))
+            .WithMessage(_ => Messages.OutOfRange(fieldName, HealthRecordInputValidator.MinWeight, HealthRecordInputValidator.MaxWeight));
+
+    private void PulseRule(System.Linq.Expressions.Expression<Func<GoalInput, int?>> property, string fieldName) =>
+        RuleFor(property)
+            .Must(value => value is null or (>= HealthRecordInputValidator.MinPulse and <= HealthRecordInputValidator.MaxPulse))
+            .WithMessage(_ => Messages.OutOfRange(fieldName, HealthRecordInputValidator.MinPulse, HealthRecordInputValidator.MaxPulse));
 }
 
 internal sealed class ExerciseInputValidator : AbstractValidator<ExerciseInput>
