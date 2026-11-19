@@ -71,6 +71,25 @@ public sealed class RepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task HealthRecords_Between_IncludeBothEndDaysOldestFirst()
+    {
+        var repository = _db.Get<IHealthRecordRepository>();
+        var userId = await _db.Get<IUserRepository>().AddAsync(new User { Name = "Aralık", Age = 40, Gender = Genders.Other }, Ct);
+
+        await repository.AddAsync(Record(userId, new DateTime(2025, 5, 31), "önce"), Ct);
+        await repository.AddAsync(Record(userId, new DateTime(2025, 6, 10), "son-1"), Ct);
+        await repository.AddAsync(Record(userId, new DateTime(2025, 6, 1), "ilk"), Ct);
+        await repository.AddAsync(Record(userId, new DateTime(2025, 6, 10), "son-2"), Ct);
+        await repository.AddAsync(Record(userId, new DateTime(2025, 6, 11), "sonra"), Ct);
+
+        var records = await repository.GetByUserBetweenAsync(
+            userId, new DateTime(2025, 6, 1, 18, 0, 0), new DateTime(2025, 6, 10, 6, 0, 0), Ct);
+
+        Assert.Equal(["ilk", "son-1", "son-2"], records.Select(r => r.Notes));
+        Assert.Empty(await repository.GetByUserBetweenAsync(userId, new DateTime(2025, 7, 1), new DateTime(2025, 7, 31), Ct));
+    }
+
+    [Fact]
     public async Task HealthRecords_KeepWeightPulseAndNullNotes()
     {
         var repository = _db.Get<IHealthRecordRepository>();

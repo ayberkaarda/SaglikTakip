@@ -9,6 +9,20 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/) temel alınar
 
 ### Eklenenler
 
+- Kilo ve nabız için bir tarih aralığında GDI+ ile çizilen trend grafikleri ("Trend Grafikleri"); ölçüm sayısı,
+  en düşük, en yüksek, ortalama ve geriye dönük hareketli ortalama (1-90 gün); aynı gündeki ölçümler birleştirilir.
+- Hedefler ve uyarı eşikleri ("Hedefler"): hedef ve başlangıç kilosu, kilo ve nabız aralıkları (sınırlar dahil),
+  kaydedilen ölçüm sınır dışındaysa uyarı ve hedef kiloya ilerleme. Yeni `Hedefler` tablosu (`AddHealthGoals`
+  migration'ı).
+- Hatırlatıcılar ("Hatırlatıcılar"): saklanan dönemsel ölçüm ve egzersiz hatırlatıcıları, uygulama açıkken bildirim
+  alanından balon (dakikada bir denetlenir, hiçbir pencere öne getirilmez) ve kapalıyken kaçırılanların açılışta
+  listelenmesi. Yeni `Hatirlaticilar` tablosu (`AddReminders` migration'ı).
+- CSV dışa aktarmalı (BOM'lu UTF-8, `;`, formül enjeksiyonu koruması) ve "PDF olarak kaydet" için yazdırılabilir,
+  tek dosyalık HTML raporlu haftalık / aylık dönem raporu ("Dönem Raporu"); dosyalar geçici bir dosyaya yazılıp
+  yerine taşınır.
+- Hareketli ortalama pencereleri, boş ve tek günlük aralıklar, aynı gün ölçümleri, tam sınırdaki değerler, hedef
+  ilerlemesi, hatırlatıcı zamanları, CSV kaçışları, bölünmez dışa aktarma, yeni tabloların SQLite ve eski veritabanı
+  yükseltmesi ile yeni ekranlarda son isteğin kazandığı yükleme ve çift tıklama koruması için testler.
 - `%LOCALAPPDATA%\SaglikTakip\logs` altında Serilog ile günlük dönen dosya günlükleri (son 30 dosya saklanır).
   Sağlık verileri (kilo, nabız, notlar), kullanıcı adları ve istisna mesajları günlüğe yazılmaz.
 - Business katmanında kullanıcı, sağlık kaydı ve egzersiz girdileri için merkezi FluentValidation doğrulayıcıları.
@@ -21,6 +35,8 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/) temel alınar
 
 ### Değişenler
 
+- Ana menüde yeni ekranlar için dört düğme daha var.
+- Sağlık kaydı kaydedilirken kullanıcının hedef sınırları da denetlenir.
 - Elle yazılmış doğrulama yardımcısı doğrulayıcılarla değiştirildi; mesajlar, kırpma ve denetim sırası aynıdır.
 - Trace çıktısına yazılan hatalar artık günlük dosyasına yazılır.
 

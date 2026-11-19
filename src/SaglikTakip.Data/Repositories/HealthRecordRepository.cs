@@ -19,6 +19,25 @@ internal sealed class HealthRecordRepository(IDbContextFactory<HealthDbContext> 
             .ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<HealthRecord>> GetByUserBetweenAsync(
+        int userId,
+        DateTime firstDay,
+        DateTime lastDay,
+        CancellationToken cancellationToken = default)
+    {
+        var first = firstDay.Date;
+        var last = lastDay.Date;
+
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await db.HealthRecords
+            .AsNoTracking()
+            .Where(r => r.UserId == userId && r.Date >= first && r.Date <= last)
+            .OrderBy(r => r.Date)
+            .ThenBy(r => r.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<int> AddAsync(HealthRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);

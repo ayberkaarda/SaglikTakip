@@ -211,6 +211,8 @@ public sealed class ServiceMockTests
         services.AddSingleton(_users.Object);
         services.AddSingleton(_records.Object);
         services.AddSingleton(_exercises.Object);
+        services.AddSingleton(new Mock<IHealthGoalRepository>(MockBehavior.Strict).Object);
+        services.AddSingleton(new Mock<IReminderRepository>(MockBehavior.Strict).Object);
         services.AddBusinessServices();
 
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
@@ -219,6 +221,10 @@ public sealed class ServiceMockTests
         Assert.NotNull(provider.GetRequiredService<IHealthRecordService>());
         Assert.NotNull(provider.GetRequiredService<IExerciseService>());
         Assert.NotNull(provider.GetRequiredService<IReportService>());
+        Assert.NotNull(provider.GetRequiredService<ITrendService>());
+        Assert.NotNull(provider.GetRequiredService<IGoalService>());
+        Assert.NotNull(provider.GetRequiredService<IReminderService>());
+        Assert.NotNull(provider.GetRequiredService<IPeriodReportService>());
     }
 
     private UserService UserService() => new(_users.Object, new UserInputValidator());

@@ -200,8 +200,22 @@ public sealed class LegacyUpgradeTests
         Assert.Equal(3, await database.ScalarAsync(
             "SELECT COUNT(*) FROM sys.indexes WHERE name IN (N'IX_Kullanicilar_Ad', N'IX_SaglikKayitlari_KullaniciId_Tarih', N'IX_Egzersizler_KullaniciId')",
             ct));
+
+        // Later migrations run on top of the adopted baseline.
+        foreach (var name in new[]
+        {
+            "PK_Hedefler", "FK_Hedefler_Kullanicilar", "CK_Hedefler_NabizAraligi",
+            "PK_Hatirlaticilar", "FK_Hatirlaticilar_Kullanicilar", "CK_Hatirlaticilar_AralikSaat",
+        })
+        {
+            Assert.Equal(1, await database.ScalarAsync("SELECT COUNT(*) FROM sys.objects WHERE name = @name", ct, ("@name", name)));
+        }
+
+        Assert.Equal(1, await database.ScalarAsync(
+            "SELECT COUNT(*) FROM sys.indexes WHERE name = N'IX_Hedefler_KullaniciId' AND is_unique = 1",
+            ct));
         Assert.Equal(3, await database.ScalarAsync(
-            "SELECT COUNT(*) FROM sys.columns c JOIN sys.types t ON t.user_type_id = c.user_type_id WHERE c.name = N'RowVersion' AND t.name = N'timestamp'",
+            "SELECT COUNT(*) FROM sys.columns c JOIN sys.types t ON t.user_type_id = c.user_type_id WHERE c.name = N'RowVersion' AND t.name = N'timestamp' AND c.object_id IN (OBJECT_ID(N'dbo.Kullanicilar'), OBJECT_ID(N'dbo.SaglikKayitlari'), OBJECT_ID(N'dbo.Egzersizler'))",
             ct));
         Assert.Equal(0, await database.ScalarAsync(
             "SELECT COUNT(*) FROM sys.columns WHERE object_id IN (OBJECT_ID(N'dbo.SaglikKayitlari'), OBJECT_ID(N'dbo.Egzersizler')) AND name = N'KullaniciId' AND is_nullable = 1",

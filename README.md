@@ -21,11 +21,31 @@ on startup.
   selected user.
 - ✅ **Report** ("Rapor Görüntüle", View Report): the selected user's health records and exercises, newest first,
   with the latest values summarised. Only the report of the most recently selected user is ever shown.
+- ✅ **Trend charts** ("Trend Grafikleri", Trend Charts): weight or pulse of the selected user over a date range,
+  drawn with GDI+ (no third-party chart package). Several measurements on the same day are shown as their mean;
+  the summary gives count, minimum, maximum and average of every single measurement plus a trailing moving
+  average over 1-90 days (empty until the window is full). Goal limits are drawn as lines and out-of-range
+  measurements are listed.
+- ✅ **Goals and alert limits** ("Hedefler", Goals): per user an optional target weight with start weight, a weight
+  range and a pulse range. Limits are inclusive (a value equal to a limit is in range). Saving a measurement outside
+  the limits shows a warning; progress runs from the start weight to the target weight (0-100%, for losing and
+  gaining weight).
+- ✅ **Reminders** ("Hatırlatıcılar", Reminders): periodic measurement or exercise reminders (every N hours, days or
+  weeks) are stored in the database. While the application is open they are checked once a minute and announced
+  with a balloon from the notification area, which never takes the focus. Reminders that came due while the
+  application was closed are listed at startup with the number of missed occurrences; "Tamamlandı" (Done) moves a
+  reminder to its next time after now.
+  **Known limitations:** reminders follow the local wall clock of the computer, not UTC. Around daylight saving
+  time changes, an hour that repeats or is skipped is ambiguous, so a reminder may be announced late or early.
+- ✅ **Weekly / monthly report** ("Dönem Raporu", Period Report): summary of a chosen range (last 7 or 30 days,
+  this month, last month or any range) exported as CSV (UTF-8 with BOM, `;` separated, formula injection
+  neutralised) or as a printable HTML page; the browser's "Print > Save as PDF" turns it into a PDF.
 - ✅ **Input validation**: central FluentValidation validators with Turkish messages. Age 0-150, weight 1-200 kg,
   pulse 1-250, record date between 1900-01-01 and today (no future dates), duration 0-1440 minutes,
   repetitions 0-1000 (at least one of them above zero), names required and at most 100 characters, notes at
   most 500 characters. Text is trimmed; blank notes are stored as no notes (`NULL`).
-- ✅ **Safe saving**: "Kaydet" (Save) buttons ignore repeated clicks while a save is still pending.
+- ✅ **Safe saving**: save, delete, create and export buttons ignore repeated clicks while the previous operation
+  is still pending, and screens that load data for a selection only ever show the answer for the latest selection.
 - ✅ **Automatic database setup**: pending EF Core migrations are applied on startup; a database created by the
   original application is upgraded in place and keeps its data.
 - ✅ **Error handling and logging**: unexpected errors are caught globally and shown as short Turkish messages;
@@ -38,7 +58,8 @@ on startup.
 | Area | Used |
 |---|---|
 | Platform | .NET 10 (`net10.0-windows` UI, `net10.0` libraries) |
-| UI | Windows Forms |
+| UI | Windows Forms; charts drawn with GDI+ |
+| Reports | CSV and self-contained printable HTML, written by the application (no PDF library) |
 | Data access | Entity Framework Core 10 (SQL Server provider) |
 | Database | Microsoft SQL Server (Express or LocalDB is enough) |
 | Validation | FluentValidation |
@@ -54,14 +75,15 @@ on startup.
 ```text
 SaglikTakip/
 ├── src/
-│   ├── SaglikTakip.Domain/     # Entities (User, HealthRecord, Exercise, UserReport) and repository contracts
-│   ├── SaglikTakip.Business/   # UserService, HealthRecordService, ExerciseService, ReportService, Validation/ (FluentValidation)
+│   ├── SaglikTakip.Domain/     # Entities (User, HealthRecord, Exercise, HealthGoal, Reminder, UserReport) and repository contracts
+│   ├── SaglikTakip.Business/   # Services (users, records, exercises, reports, trends, goals, reminders, period reports),
+│   │                           # Insights/ (trend, goal and reminder rules), Reporting/ (CSV, HTML), Validation/ (FluentValidation)
 │   ├── SaglikTakip.Data/       # EF Core DbContext, configurations, Migrations/, legacy upgrade, repositories
-│   └── SaglikTakip.UI/         # WinForms screens, Infrastructure/ (errors, logging, save guard), Program.cs (composition root)
+│   └── SaglikTakip.UI/         # WinForms screens, Infrastructure/ (errors, logging, save guard, chart, reminder monitor), Program.cs (composition root)
 ├── tests/
 │   ├── SaglikTakip.Business.Tests/  # Validator and service unit tests (Moq, in-memory fakes)
 │   ├── SaglikTakip.Data.Tests/      # Repository and service tests on SQLite; legacy upgrade tests (SQL Server)
-│   └── SaglikTakip.UI.Tests/        # Configuration, error message, log, save guard and report tests (no windows shown)
+│   └── SaglikTakip.UI.Tests/        # Configuration, error message, log, save guard, latest-wins loading, chart and reminder tests (no windows shown)
 ├── docs/THREAT_MODEL.md        # Threat model
 ├── .github/workflows/ci.yml    # Build, test and release workflow
 ├── screenshots/                # README screenshots
@@ -142,6 +164,10 @@ return code is checked) and is safe to repeat. If existing rows break the new ru
 
 Take a backup of the database before the first start with the new version.
 
+Goals (`Hedefler`) and reminders (`Hatirlaticilar`) are new tables added by their own migrations
+(`AddHealthGoals`, `AddReminders`); existing tables are not changed. An upgraded legacy database receives them
+through the normal migration step right after the upgrade.
+
 ### 4. Migrations
 
 ```powershell
@@ -157,7 +183,8 @@ The design-time factory reads `SAGLIKTAKIP_CONNECTION` and otherwise uses a loca
 Logs are written to `%LOCALAPPDATA%\SaglikTakip\logs\sagliktakip-YYYYMMDD.log`, one file per day, and the last
 30 files are kept. The folder is outside the repository. Error entries contain only exception types, error
 codes and the method names of the stack trace (no file paths). Exception messages, measurement values
-(weight, pulse), notes and user names are never written to the log.
+(weight, pulse), notes and user names are never written to the log. Reminder checks log only the number of due
+reminders, and exports log only the format, never the file path or the reminder titles.
 
 ---
 
@@ -173,6 +200,11 @@ See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for the threat model.
 - Business rules are enforced in the Business layer and backed by database constraints (check constraints on
   age, gender, weight, pulse, duration and repetitions; restrict foreign keys).
 - Users only see Turkish messages; raw exception text is never shown.
+- Exported reports contain health data and are saved only where the user chooses. CSV cells starting with `=`,
+  `+`, `-`, `@`, a tab or a carriage return get a leading `'`, so spreadsheet programs never run them as formulas.
+  The HTML report encodes every value, contains no scripts and sets a `default-src 'none'` content security policy.
+  Both are written to a temporary file in the target folder and moved into place, so a failed export never leaves
+  a half-written file. Suggested file names contain only the date range.
 - The application has no sign-in or roles: anyone who can start it can read and change all data. Database access
   is controlled by the SQL Server account in the connection string.
 
@@ -206,6 +238,12 @@ See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for the threat model.
 3. Add an exercise on "Egzersiz Planla" (Plan Exercise); try a duration and repetition count of 0.
 4. Open "Rapor Görüntüle" (View Report) and switch quickly between users: only the last selected user's report stays.
 5. Stop SQL Server and check that a friendly Turkish error is shown and the details land in the log file.
+6. On "Hedefler" (Goals) set a pulse range of 50-120, then add a measurement with pulse 120 (no warning) and 121
+   (warning). On "Trend Grafikleri" (Trend Charts) check the limit lines, the summary and the moving average.
+7. On "Hatırlatıcılar" (Reminders) add a reminder due in a minute and wait for the balloon; close the application,
+   let a reminder come due and check that it is listed at the next start.
+8. On "Dönem Raporu" (Period Report) export a week as CSV and as HTML; open the CSV in a spreadsheet program and
+   print the HTML page to PDF from the browser.
 
 ### Automated tests
 
@@ -215,9 +253,9 @@ dotnet test -c Release
 
 | Project | Type | Scope | Result (`-c Release`, SQL tests skipped) |
 |---|---|---|---|
-| `tests/SaglikTakip.Business.Tests` | Unit | Validator limits (age 0/150, weight 1/200, pulse 1/250, future date, duration, repetitions, lengths), Turkish messages, services with strict Moq mocks | 85 passed |
-| `tests/SaglikTakip.Data.Tests` | Integration | Repositories and services on SQLite in-memory (`Data Source=:memory:`), check constraints and foreign keys; legacy upgrade and upgrade lock on SQL Server | 19 passed, 4 skipped |
-| `tests/SaglikTakip.UI.Tests` | Unit | Example configuration, Turkish error messages, log content and files, save guard, latest-wins report loading | 13 passed |
+| `tests/SaglikTakip.Business.Tests` | Unit | Validator limits (age 0/150, weight 1/200, pulse 1/250, future date, duration, repetitions, lengths), Turkish messages, services with strict Moq mocks; moving average windows, empty range, single measurement, same-day measurements, inclusive goal limits, goal progress, reminder due times and missed occurrences, CSV escaping and formula injection, atomic export | 191 passed |
+| `tests/SaglikTakip.Data.Tests` | Integration | Repositories and services on SQLite in-memory (`Data Source=:memory:`), check constraints and foreign keys, date range queries, goals and reminders; legacy upgrade (including the new tables) and upgrade lock on SQL Server | 34 passed, 4 skipped |
+| `tests/SaglikTakip.UI.Tests` | Unit | Example configuration, Turkish error messages, log content and files, save guard, latest-wins loading on the report, trend, goal and period report screens, chart scaling, reminder announcements | 36 passed |
 
 The skipped tests need SQL Server. They use throw-away databases on the server in `SAGLIKTAKIP_TEST_SQLSERVER`
 (default: local SQL Express with Windows authentication) and are skipped when `SAGLIKTAKIP_SKIP_SQL_TESTS=1` is
@@ -261,7 +299,17 @@ The target machine needs the .NET 10 Desktop Runtime. Put `appsettings.json` nex
 - Validators (`UserInputValidator`, `HealthRecordInputValidator`, `ExerciseInputValidator`) live in
   `SaglikTakip.Business/Validation` and stop at the first failure, so the user sees one message at a time.
 - New save or delete buttons should go through `RunExclusiveAsync` (`ExclusiveOperation`), and loads triggered by
-  a selection should use `RequestSequence` so only the latest response is shown.
+  a selection should use `RequestSequence` so only the latest response is shown. The goals screen also keeps its
+  editor locked until the selected user's goal has loaded, so a late answer can never be saved under another user.
+- Calculations live in pure static classes in `SaglikTakip.Business/Insights` (`TrendCalculator`, `GoalEvaluator`,
+  `ReminderSchedule`, `DayRanges`) and are tested directly; services only load data and call them.
+- PDF: the printable report is HTML because the browser already prints any page to PDF. A PDF library (for example
+  QuestPDF with its licence terms and native rendering dependency, or PdfSharp/MigraDoc) would add a sizeable
+  dependency for a single page; WinForms printing (`PrintDocument`) would need hand-made pagination. HTML also
+  gives a preview before printing.
+- The trend chart is a GDI+ control (`TrendChart`): `System.Windows.Forms.DataVisualization` is not part of .NET
+  10, and the community port would add an unmaintained dependency.
+- Exercises have no date, so they are not part of the period report.
 
 ---
 

@@ -34,6 +34,8 @@ public static class DataServiceCollectionExtensions
         services.AddSingleton<IUserRepository, UserRepository>();
         services.AddSingleton<IHealthRecordRepository, HealthRecordRepository>();
         services.AddSingleton<IExerciseRepository, ExerciseRepository>();
+        services.AddSingleton<IHealthGoalRepository, HealthGoalRepository>();
+        services.AddSingleton<IReminderRepository, ReminderRepository>();
         return services;
     }
 }
