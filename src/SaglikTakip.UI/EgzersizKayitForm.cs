@@ -47,14 +47,14 @@ namespace SaglikTakip.UI
                 if (comboBox1.SelectedItem is not User user)
                 {
                     ShowStatus(StatusKind.Warning, "Lütfen bir kullanıcı seçiniz.");
-                    comboBox1.Focus();
+                    _save.FocusAfterUnlock(comboBox1);
                     return;
                 }
 
                 if (string.IsNullOrWhiteSpace(textBox1.Text))
                 {
                     ShowStatus(StatusKind.Warning, "Egzersiz adını giriniz.");
-                    textBox1.Focus();
+                    _save.FocusAfterUnlock(textBox1);
                     return;
                 }
 
@@ -70,7 +70,7 @@ namespace SaglikTakip.UI
                 numericUpDown1.Value = 0;
                 numericUpDown2.Value = 0;
                 comboBox1.SelectedIndex = -1;
-                comboBox1.Focus();
+                _save.FocusAfterUnlock(comboBox1);
             },
             btnKaydet, btnkapat, comboBox1, textBox1, numericUpDown1, numericUpDown2);
         }

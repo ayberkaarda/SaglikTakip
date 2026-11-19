@@ -104,6 +104,42 @@ public sealed class ScreenTests
     });
 
     [Fact]
+    public void InvalidAge_SelectsAgeAfterUnlock() => Run(() =>
+    {
+        using var form = new KullaniciEkleForm(new PendingUserService());
+        CreateHandles(form);
+        var age = Find<TextBox>(form, "textBoxyas");
+        var name = Find<TextBox>(form, "textBoxad");
+        name.Text = "Ayşe";
+
+        var save = form.SaveAsync();
+
+        Assert.True(save.IsCompletedSuccessfully);
+        Assert.True(age.Enabled); // The focus is moved only once the field can take it.
+        Assert.Same(age, form.ActiveControl);
+    });
+
+    [Fact]
+    public void SuccessfulSave_SelectsTheFirstFieldAfterUnlock() => Run(() =>
+    {
+        var users = new PendingUserService();
+        using var form = new KullaniciEkleForm(users);
+        CreateHandles(form);
+        var name = Find<TextBox>(form, "textBoxad");
+        name.Text = "Ayşe";
+        Find<TextBox>(form, "textBoxyas").Text = "34";
+        Find<ComboBox>(form, "comboBoxcins").Focus();
+
+        var save = form.SaveAsync();
+        Assert.False(save.IsCompleted);
+        users.CompleteAdd();
+
+        Assert.True(save.IsCompletedSuccessfully);
+        Assert.True(name.Enabled);
+        Assert.Same(name, form.ActiveControl);
+    });
+
+    [Fact]
     public void EmptyGrid_ExplainsWhatAppearsThere() => Run(() =>
     {
         using var form = new Raporekleform(new PendingUserService(), new ControlledReportService());

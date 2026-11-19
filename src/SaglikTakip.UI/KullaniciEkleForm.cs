@@ -45,7 +45,7 @@ namespace SaglikTakip.UI
                 if (!int.TryParse(textBoxyas.Text, NumberStyles.None, CultureInfo.CurrentCulture, out var age))
                 {
                     ShowStatus(StatusKind.Warning, "Lütfen geçerli bir yaş girin.");
-                    textBoxyas.Focus();
+                    _save.FocusAfterUnlock(textBoxyas);
                     return;
                 }
 
@@ -55,7 +55,7 @@ namespace SaglikTakip.UI
                 textBoxad.Clear();
                 textBoxyas.Clear();
                 comboBoxcins.SelectedIndex = -1;
-                textBoxad.Focus();
+                _save.FocusAfterUnlock(textBoxad);
             },
             btnKaydet, btnkapat, textBoxad, textBoxyas, comboBoxcins);
         }

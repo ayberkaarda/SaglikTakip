@@ -124,7 +124,7 @@ namespace SaglikTakip.UI
                 if (_userPicker.SelectedItem is not User user)
                 {
                     ShowStatus(StatusKind.Warning, "Lütfen bir kullanıcı seçin.");
-                    _userPicker.Focus();
+                    _write.FocusAfterUnlock(_userPicker);
                     return;
                 }
 

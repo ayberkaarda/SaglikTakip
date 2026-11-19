@@ -66,7 +66,7 @@ namespace SaglikTakip.UI
                 if (comboBox1.SelectedItem is not User user)
                 {
                     ShowStatus(StatusKind.Warning, "Lütfen bir kullanıcı seçin.");
-                    comboBox1.Focus();
+                    _save.FocusAfterUnlock(comboBox1);
                     return;
                 }
 
