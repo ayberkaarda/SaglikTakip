@@ -35,6 +35,8 @@ on startup.
   with a balloon from the notification area, which never takes the focus. Reminders that came due while the
   application was closed are listed at startup with the number of missed occurrences; "Tamamlandı" (Done) moves a
   reminder to its next time after now.
+  **Known limitations:** reminders follow the local wall clock of the computer, not UTC. Around daylight saving
+  time changes, an hour that repeats or is skipped is ambiguous, so a reminder may be announced late or early.
 - ✅ **Weekly / monthly report** ("Dönem Raporu", Period Report): summary of a chosen range (last 7 or 30 days,
   this month, last month or any range) exported as CSV (UTF-8 with BOM, `;` separated, formula injection
   neutralised) or as a printable HTML page; the browser's "Print > Save as PDF" turns it into a PDF.

@@ -32,6 +32,8 @@ oluşturulup güncellenir.
   veritabanında saklanır. Uygulama açıkken dakikada bir denetlenir ve bildirim alanından, odağı hiç almayan bir
   balonla duyurulur. Uygulama kapalıyken zamanı gelen hatırlatıcılar açılışta kaçırılan tekrar sayısıyla listelenir;
   "Tamamlandı" hatırlatıcıyı şimdiden sonraki ilk zamanına taşır.
+  **Bilinen sınırlamalar:** hatırlatıcılar UTC'ye değil bilgisayarın yerel duvar saatine göre çalışır. Yaz saati
+  geçişlerinde tekrar eden veya atlanan saat belirsizdir; bu yüzden bir hatırlatıcı geç ya da erken duyurulabilir.
 - ✅ **Haftalık / aylık rapor** ("Dönem Raporu"): seçilen aralığın (son 7 veya 30 gün, bu ay, geçen ay ya da herhangi
   bir aralık) özeti CSV (BOM'lu UTF-8, `;` ayraçlı, formül enjeksiyonuna karşı korumalı) veya yazdırılabilir HTML
   sayfası olarak dışa aktarılır; tarayıcıdaki "Yazdır > PDF olarak kaydet" ile PDF elde edilir.
