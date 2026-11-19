@@ -135,6 +135,49 @@ internal sealed class ControlledGoalService : IGoalService
         });
 }
 
+/// <summary>Reminder service with a settable due list and writes that never complete.</summary>
+internal sealed class ControlledReminderService : IReminderService
+{
+    private readonly TaskCompletionSource<Reminder> _pendingAdd = new();
+
+    public List<ReminderItem> Due { get; } = [];
+
+    public int AddCalls { get; private set; }
+
+    public int DueCalls { get; private set; }
+
+    public TaskCompletionSource<IReadOnlyList<ReminderItem>>? PendingDue { get; set; }
+
+    public Task<IReadOnlyList<ReminderItem>> GetAllAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ReminderItem>>(Due.ToList());
+
+    public Task<IReadOnlyList<ReminderItem>> GetDueAsync(CancellationToken cancellationToken = default)
+    {
+        DueCalls++;
+        return PendingDue?.Task ?? Task.FromResult<IReadOnlyList<ReminderItem>>(Due.ToList());
+    }
+
+    public Task<Reminder> AddAsync(
+        int userId,
+        ReminderKind kind,
+        string? title,
+        int intervalHours,
+        DateTime firstDueAt,
+        CancellationToken cancellationToken = default)
+    {
+        AddCalls++;
+        return _pendingAdd.Task;
+    }
+
+    public Task<bool> CompleteAsync(int id, DateTime expectedDueAt, CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
+
+    public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+    public static ReminderItem Item(int id, DateTime dueAt, string title = "Tansiyon ölç") =>
+        new(new Reminder { Id = id, UserId = 1, Kind = ReminderKind.Measurement, Title = title, IntervalHours = 24, NextDueAt = dueAt }, "Ali", true, 1);
+}
+
 /// <summary>Trend service whose responses are completed by the test, in any order.</summary>
 internal sealed class ControlledTrendService : ITrendService
 {
