@@ -26,6 +26,7 @@ public static class BusinessServiceCollectionExtensions
         services.AddSingleton<IGoalService, GoalService>();
         services.AddSingleton<IValidator<ReminderInput>, ReminderInputValidator>();
         services.AddSingleton<IReminderService, ReminderService>();
+        services.AddSingleton<IPeriodReportService, PeriodReportService>();
         return services;
     }
 }

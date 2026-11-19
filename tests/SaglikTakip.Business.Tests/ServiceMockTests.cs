@@ -224,6 +224,7 @@ public sealed class ServiceMockTests
         Assert.NotNull(provider.GetRequiredService<ITrendService>());
         Assert.NotNull(provider.GetRequiredService<IGoalService>());
         Assert.NotNull(provider.GetRequiredService<IReminderService>());
+        Assert.NotNull(provider.GetRequiredService<IPeriodReportService>());
     }
 
     private UserService UserService() => new(_users.Object, new UserInputValidator());
