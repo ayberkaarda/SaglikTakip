@@ -105,6 +105,31 @@ public sealed class ChartScaleTests
     }
 
     [Fact]
+    public void NiceTicks_UseRoundStepsThatCoverTheRange()
+    {
+        Assert.Equal([50d, 60d, 70d, 80d, 90d], ChartScale.NiceTicks(59, 81, 5));
+        Assert.Equal([68d, 70d, 72d, 74d, 76d, 78d], ChartScale.NiceTicks(68.9, 77.6, 5));
+
+        var ticks = ChartScale.NiceTicks(70, 70, 5);
+        Assert.True(ticks[0] <= 69 && ticks[^1] >= 71);
+        Assert.All(ticks.Zip(ticks.Skip(1)), pair => Assert.True(pair.Second > pair.First));
+    }
+
+    [Fact]
+    public void DateTicks_IncludeBothEndsWithoutCrowding()
+    {
+        var first = new DateTime(2026, 10, 21);
+
+        var month = ChartScale.DateTicks(first, first.AddDays(29), 8);
+        Assert.Equal(first, month[0]);
+        Assert.Equal(first.AddDays(29), month[^1]);
+        Assert.True(month.Count <= 8);
+        Assert.All(month.Zip(month.Skip(1)), pair => Assert.True((pair.Second - pair.First).TotalDays >= 2));
+
+        Assert.Equal([first], ChartScale.DateTicks(first, first, 5));
+    }
+
+    [Fact]
     public void ValueRange_AddsHeadroomAndWidensASingleValue()
     {
         Assert.Equal((69d, 71d), ChartScale.ValueRange([70, 70]));
