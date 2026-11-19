@@ -2,6 +2,7 @@ using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
 using SaglikTakip.UI.Tests.Support;
+using SaglikTakip.UI.Theming;
 using static SaglikTakip.UI.Tests.Support.StaThread;
 
 namespace SaglikTakip.UI.Tests;
@@ -85,8 +86,44 @@ public sealed class ReminderMonitorTests
     }
 }
 
+[CollectionDefinition("SharedTheme", DisableParallelization = true)]
+public sealed class SharedThemeDefinition;
+
+[Collection("SharedTheme")]
 public sealed class HatirlaticiFormTests
 {
+    [Fact]
+    public void DueStatus_HighContrastPreservesSelectionText() => Run(() =>
+    {
+        var previous = Theme.Current;
+        Theme.Use(ThemePalette.HighContrast());
+        try
+        {
+            var reminders = new ControlledReminderService();
+            var due = ControlledReminderService.Item(1, new DateTime(2026, 1, 5, 9, 0, 0, DateTimeKind.Unspecified));
+            reminders.Due.Add(due);
+            reminders.Due.Add(due with { DueOccurrences = 3 });
+            using var form = new HatirlaticiForm(new PendingUserService(), reminders);
+            form.ReloadAsync().GetAwaiter().GetResult();
+            var grid = Find<DataGridView>(form, "reminderGrid");
+            var status = grid.Columns.Cast<DataGridViewColumn>().Single(c => c.DataPropertyName == "Status");
+
+            Assert.Equal(2, grid.Rows.Count);
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                var style = new DataGridViewCellStyle();
+                form.HighlightStatus(grid, new DataGridViewCellFormattingEventArgs(status.Index, row.Index, null, typeof(string), style));
+
+                Assert.Equal(Color.Empty, style.SelectionForeColor); // Inherited from the system selection colors.
+                Assert.Same(Theme.Fonts.BodyStrong, style.Font); // The emphasis stays, as weight.
+            }
+        }
+        finally
+        {
+            Theme.Use(previous);
+        }
+    });
+
     [Fact]
     public void Add_WhilePending_DoesNotInsertTwice() => Run(() =>
     {

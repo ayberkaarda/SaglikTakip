@@ -241,7 +241,7 @@ namespace SaglikTakip.UI
         }
 
         /// <summary>Due and missed rows get the warning or danger text color and a stronger weight.</summary>
-        private void HighlightStatus(object? sender, DataGridViewCellFormattingEventArgs e)
+        internal void HighlightStatus(object? sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || _grid.Columns[e.ColumnIndex].DataPropertyName != nameof(Row.Status)
                 || _grid.Rows[e.RowIndex].DataBoundItem is not Row { Item.IsDue: true } row || e.CellStyle is null)
@@ -250,7 +250,12 @@ namespace SaglikTakip.UI
             }
 
             e.CellStyle.ForeColor = row.Item.DueOccurrences > 1 ? Theme.Current.Danger : Theme.Current.Warning;
-            e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
+            if (!Theme.Current.IsHighContrast)
+            {
+                // In high contrast the selection pair belongs to the system (HighlightText on Highlight).
+                e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
+            }
+
             e.CellStyle.Font = Theme.Fonts.BodyStrong;
         }
 
