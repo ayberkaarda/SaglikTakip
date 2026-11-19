@@ -1,3 +1,5 @@
+using FluentValidation;
+using SaglikTakip.Business.Validation;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.Domain.Repositories;
 
@@ -17,15 +19,8 @@ public interface IHealthRecordService
 internal sealed class HealthRecordService(
     IUserRepository users,
     IHealthRecordRepository records,
-    TimeProvider timeProvider) : IHealthRecordService
+    IValidator<HealthRecordInput> validator) : IHealthRecordService
 {
-    internal const decimal MinWeight = 1;
-    internal const decimal MaxWeight = 200;
-    internal const int MinPulse = 1;
-    internal const int MaxPulse = 250;
-    internal const int MaxNotesLength = 500;
-    internal static readonly DateTime MinDate = new(1900, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
-
     public async Task<HealthRecord> AddAsync(
         int userId,
         DateTime recordDate,
@@ -34,34 +29,21 @@ internal sealed class HealthRecordService(
         string? notes,
         CancellationToken cancellationToken = default)
     {
-        var record = new HealthRecord
-        {
-            UserId = userId,
-            Date = ValidateDate(recordDate),
-            Weight = (double)Validation.Range(weight, "Kilo", MinWeight, MaxWeight),
-            Pulse = Validation.Range(pulse, "Nabız", MinPulse, MaxPulse),
-            Notes = Validation.Optional(notes, "Notlar", MaxNotesLength),
-        };
+        var input = HealthRecordInput.Create(userId, recordDate, weight, pulse, notes);
+        validator.ValidateOrThrow(input);
 
         await UserGuard.EnsureExistsAsync(users, userId, cancellationToken).ConfigureAwait(false);
 
+        var record = new HealthRecord
+        {
+            UserId = input.UserId,
+            Date = input.Date,
+            Weight = (double)input.Weight,
+            Pulse = input.Pulse,
+            Notes = input.Notes,
+        };
+
         record.Id = await records.AddAsync(record, cancellationToken).ConfigureAwait(false);
         return record;
-    }
-
-    private DateTime ValidateDate(DateTime date)
-    {
-        var day = date.Date;
-        if (day < MinDate)
-        {
-            throw new BusinessRuleException("Lütfen geçerli bir tarih seçin.");
-        }
-
-        if (day > timeProvider.GetLocalNow().Date)
-        {
-            throw new BusinessRuleException("Sağlık kaydının tarihi ileri bir tarih olamaz.");
-        }
-
-        return day;
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 using SaglikTakip.Business.Services;
+using SaglikTakip.Business.Validation;
 using SaglikTakip.Domain.Entities;
 
 namespace SaglikTakip.Business.Tests;
@@ -14,7 +15,7 @@ public sealed class ServiceTests
     [Fact]
     public async Task AddUser_TrimsNameAndStoresUser()
     {
-        var service = new UserService(_users);
+        var service = NewUserService();
 
         var user = await service.AddAsync("  Deneme Kişi ", 30, Genders.Female, TestContext.Current.CancellationToken);
 
@@ -30,7 +31,7 @@ public sealed class ServiceTests
     [InlineData("Ad", 30, "Bilinmiyor")]
     public async Task AddUser_InvalidInput_IsRejected(string name, int age, string? gender)
     {
-        var service = new UserService(_users);
+        var service = NewUserService();
 
         await Assert.ThrowsAsync<BusinessRuleException>(
             () => service.AddAsync(name, age, gender, TestContext.Current.CancellationToken));
@@ -41,7 +42,7 @@ public sealed class ServiceTests
     public async Task AddHealthRecord_StoresDateWithoutTimeAndBlankNotesAsNull()
     {
         var userId = await AddUserAsync();
-        var service = new HealthRecordService(_users, _records, _time);
+        var service = new HealthRecordService(_users, _records, new HealthRecordInputValidator(_time));
 
         var record = await service.AddAsync(userId, new DateTime(2025, 6, 1, 17, 45, 0), 72.5m, 80, "   ", TestContext.Current.CancellationToken);
 
@@ -58,7 +59,7 @@ public sealed class ServiceTests
     public async Task AddHealthRecord_OutOfRangeValues_AreRejected(int weight, int pulse)
     {
         var userId = await AddUserAsync();
-        var service = new HealthRecordService(_users, _records, _time);
+        var service = new HealthRecordService(_users, _records, new HealthRecordInputValidator(_time));
 
         await Assert.ThrowsAsync<BusinessRuleException>(
             () => service.AddAsync(userId, new DateTime(2025, 6, 1), weight, pulse, null, TestContext.Current.CancellationToken));
@@ -69,7 +70,7 @@ public sealed class ServiceTests
     public async Task AddHealthRecord_FutureDateOrUnknownUser_IsRejected()
     {
         var userId = await AddUserAsync();
-        var service = new HealthRecordService(_users, _records, _time);
+        var service = new HealthRecordService(_users, _records, new HealthRecordInputValidator(_time));
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAsync<BusinessRuleException>(() => service.AddAsync(userId, new DateTime(2025, 6, 16), 70, 80, null, ct));
@@ -81,7 +82,7 @@ public sealed class ServiceTests
     public async Task AddExercise_RequiresNameAndSomeEffort()
     {
         var userId = await AddUserAsync();
-        var service = new ExerciseService(_users, _exercises);
+        var service = new ExerciseService(_users, _exercises, new ExerciseInputValidator());
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAsync<BusinessRuleException>(() => service.AddAsync(userId, " ", 10, 0, ct));
@@ -100,8 +101,8 @@ public sealed class ServiceTests
         var userId = await AddUserAsync();
         var otherUserId = await AddUserAsync();
         var ct = TestContext.Current.CancellationToken;
-        var records = new HealthRecordService(_users, _records, _time);
-        var exercises = new ExerciseService(_users, _exercises);
+        var records = new HealthRecordService(_users, _records, new HealthRecordInputValidator(_time));
+        var exercises = new ExerciseService(_users, _exercises, new ExerciseInputValidator());
 
         await records.AddAsync(userId, new DateTime(2025, 5, 1), 70, 80, "eski", ct);
         await records.AddAsync(userId, new DateTime(2025, 6, 1), 69, 75, "yeni", ct);
@@ -119,6 +120,8 @@ public sealed class ServiceTests
             () => new ReportService(_users, _records, _exercises).GetUserReportAsync(999, ct));
     }
 
+    private UserService NewUserService() => new(_users, new UserInputValidator());
+
     private async Task<int> AddUserAsync() =>
-        (await new UserService(_users).AddAsync("Test Kullanıcı", 40, Genders.Other, TestContext.Current.CancellationToken)).Id;
+        (await NewUserService().AddAsync("Test Kullanıcı", 40, Genders.Other, TestContext.Current.CancellationToken)).Id;
 }

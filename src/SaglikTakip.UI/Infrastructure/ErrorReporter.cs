@@ -4,10 +4,11 @@ using System.Globalization;
 using System.Text;
 using SaglikTakip.Business;
 using SaglikTakip.Data.Persistence;
+using Serilog;
 
 namespace SaglikTakip.UI.Infrastructure;
 
-/// <summary>Turns exceptions into short, user friendly Turkish messages.</summary>
+/// <summary>Logs exceptions and turns them into short, user friendly Turkish messages.</summary>
 internal static class ErrorReporter
 {
     private const string Caption = "Sağlık Takip";
@@ -22,14 +23,34 @@ internal static class ErrorReporter
             return;
         }
 
+        Record(Log.Logger, exception);
+
         if (exception is BusinessRuleException)
         {
             MessageBox.Show(owner, exception.Message, "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        Trace.TraceError(FormatForLog(exception));
         MessageBox.Show(owner, Describe(exception), Caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+
+    /// <summary>
+    /// Writes the exception to <paramref name="logger"/>. Business rule messages are fixed Turkish texts
+    /// (field names and limits, never entered values) and are logged as warnings; every other exception
+    /// is logged through <see cref="FormatForLog"/>, so its message never reaches the log.
+    /// </summary>
+    internal static void Record(ILogger logger, Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(exception);
+
+        if (exception is BusinessRuleException)
+        {
+            logger.Warning("Business rule rejected an operation: {Rule}", exception.Message);
+            return;
+        }
+
+        logger.Error("Operation failed: {Details}", FormatForLog(exception));
     }
 
     /// <summary>

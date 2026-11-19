@@ -13,6 +13,9 @@ internal static class SchemaLimits
 
     public const string AgeCheck = "[Yas] >= 0 AND [Yas] <= 150";
     public const string GenderCheck = "[Cinsiyet] IN (N'Erkek', N'Kadın', N'Diğer')";
+
+    /// <summary>Same rule without the SQL Server N'' prefix, for other providers (tests use SQLite).</summary>
+    public const string PortableGenderCheck = "[Cinsiyet] IN ('Erkek', 'Kadın', 'Diğer')";
     public const string WeightCheck = "[Kilo] >= 0 AND [Kilo] <= 200";
     public const string PulseCheck = "[Nabiz] >= 0 AND [Nabiz] <= 250";
     public const string DurationCheck = "[SureDakika] >= 0 AND [SureDakika] <= 1440";
