@@ -19,6 +19,8 @@ public abstract class AppDialog : Form, IStatusSurface
     internal const string AppName = "Sağlık Takip";
 
     private readonly InfoBar _status = new();
+    private readonly Panel _body;
+    private Size _contentMinimum;
     private readonly FlowLayoutPanel _actions;
     private readonly Label _footerNote;
 
@@ -41,10 +43,14 @@ public abstract class AppDialog : Form, IStatusSurface
         {
             Name = "body",
             Dock = DockStyle.Fill,
+            AutoScroll = true,
             Padding = new Padding(Spacing.XL, Spacing.L, Spacing.XL, Spacing.S),
         };
+        _body = body;
         body.Controls.Add(Content);
         body.Controls.Add(_status);
+        _status.SizeChanged += (_, _) => KeepContentReachable();
+        _status.VisibleChanged += (_, _) => KeepContentReachable();
 
         (_actions, _footerNote, var footer) = BuildFooter();
         Controls.Add(body);
@@ -125,12 +131,15 @@ public abstract class AppDialog : Form, IStatusSurface
     /// </summary>
     private void FitSizeToContent()
     {
+        // Child handles change the measured heights of combo boxes and numeric fields, so create them first
+        // (the window stays hidden).
+        CreateChildHandles(this);
         var design = ClientSize;
         var trial = new Size(MinimumSize.Width - (Width - ClientSize.Width), MinimumSize.Height - (Height - ClientSize.Height));
         ShowStatus(StatusKind.Info, "Örnek ileti" + Environment.NewLine + "ikinci satır");
         try
         {
-            for (var pass = 0; pass < 4; pass++)
+            for (var pass = 0; pass < 8; pass++)
             {
                 ClientSize = trial;
                 PerformLayout();
@@ -145,35 +154,63 @@ public abstract class AppDialog : Form, IStatusSurface
         }
         finally
         {
+            // Should the window ever be smaller than this (a screen too small for large fonts), the body scrolls.
+            _contentMinimum = new Size(_body.ClientSize.Width, _body.ClientSize.Height - _status.Height);
             ClearStatus();
         }
 
+        var area = SystemInformation.WorkingArea.Size;
         var fitted = SizeFromClientSize(trial);
+        fitted = new Size(Math.Min(fitted.Width, area.Width), Math.Min(fitted.Height, area.Height));
+        trial = ClientSizeFromWindow(fitted);
         MinimumSize = new Size(Math.Max(MinimumSize.Width, fitted.Width), Math.Max(MinimumSize.Height, fitted.Height));
         ClientSize = new Size(Math.Max(design.Width, trial.Width), Math.Max(design.Height, trial.Height));
         PerformLayout();
     }
 
+    /// <summary>The scrollable area always holds the content at its minimum size plus the message strip.</summary>
+    private void KeepContentReachable()
+    {
+        if (!_contentMinimum.IsEmpty)
+        {
+            _body.AutoScrollMinSize = new Size(_contentMinimum.Width, _contentMinimum.Height + (_status.Text.Length > 0 ? _status.Height : 0));
+        }
+    }
+
+    private Size ClientSizeFromWindow(Size window) =>
+        new(window.Width - (Width - ClientSize.Width), window.Height - (Height - ClientSize.Height));
+
+    private static void CreateChildHandles(Control parent)
+    {
+        foreach (Control child in parent.Controls)
+        {
+            _ = child.Handle;
+            CreateChildHandles(child);
+        }
+    }
+
     /// <summary>How far the controls reach beyond the visible area of their containers (right, bottom).</summary>
     private static Size Overflow(Control root)
     {
+        const int Tolerance = 1; // Field wrappers settle the height of combo boxes one pixel late.
         var width = 0;
         var height = 0;
         foreach (Control child in root.Controls)
         {
-            if (child is InfoBar { Visible: false } || child.Width == 0 || child.Height == 0)
+            if (child is InfoBar { Visible: false })
             {
                 continue;
             }
 
-            if (child is not (Label or Panel or TableLayoutPanel or FlowLayoutPanel or GroupBox) && child.Parent is not NumericUpDown)
+            if (child is not (Label or Panel or TableLayoutPanel or FlowLayoutPanel or GroupBox) && child.Parent is not NumericUpDown
+                && child.Width > 0 && child.Height > 0)
             {
                 // Position of the control in the client area of each ancestor, without creating handles.
                 var offset = child.Location;
                 for (var ancestor = child.Parent; ancestor is not null; ancestor = ancestor.Parent)
                 {
-                    width = Math.Max(width, offset.X + child.Width - ancestor.ClientSize.Width);
-                    height = Math.Max(height, offset.Y + child.Height - ancestor.ClientSize.Height);
+                    width = Math.Max(width, Math.Max(offset.X + child.Width - ancestor.ClientSize.Width, -offset.X) - Tolerance);
+                    height = Math.Max(height, offset.Y + child.Height - ancestor.ClientSize.Height - Tolerance);
                     offset = new Point(offset.X + ancestor.Left, offset.Y + ancestor.Top);
                 }
             }

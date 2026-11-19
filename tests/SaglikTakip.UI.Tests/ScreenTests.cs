@@ -49,16 +49,52 @@ public sealed class ScreenTests
         Assert.Empty(overflow);
     });
 
+    public static TheoryData<string, float> ScreensAtFontScales
+    {
+        get
+        {
+            var data = new TheoryData<string, float>();
+            foreach (var scale in new[] { 1F, 1.25F, 1.5F, 2F })
+            {
+                foreach (var name in new[]
+                {
+                    nameof(Form1), nameof(KullaniciEkleForm), nameof(SaglikKayitForm), nameof(EgzersizKayitForm), nameof(Raporekleform),
+                    nameof(TrendForm), nameof(HedefForm), nameof(HatirlaticiForm), nameof(DonemRaporuForm),
+                })
+                {
+                    data.Add(name, scale);
+                }
+            }
+
+            return data;
+        }
+    }
+
     [Theory]
-    [MemberData(nameof(ScreenNames))]
-    public void Screen_MinimumSizeWithStatus_KeepsInputsReachable(string name) => Run(() =>
+    [MemberData(nameof(ScreensAtFontScales))]
+    public void Screen_MinimumSizeWithStatus_KeepsInputsReachable(string name, float fontScale) => Run(() =>
+    {
+        var previous = Theme.Current;
+        var previousScale = Theme.RenderScale;
+        Theme.Use(previous, fontScale); // Larger fonts stand in for a different font, DPI or text scale.
+        try
+        {
+            AssertInputsReachable(name);
+        }
+        finally
+        {
+            Theme.Use(previous, previousScale);
+        }
+    });
+
+    private static void AssertInputsReachable(string name)
     {
         using var form = Create(name);
         CreateHandles(form);
         form.Size = form.MinimumSize;
         if (form is AppDialog dialog)
         {
-            dialog.ShowStatus(StatusKind.Warning, "Ölçüm hedef sınırlarının dışında." + Environment.NewLine + "Değeri düzeltip yeniden kaydedin.");
+            dialog.ShowStatus(StatusKind.Warning, "Ölçüm sınırın dışında." + Environment.NewLine + "Değeri düzeltin.");
         }
 
         form.PerformLayout();
@@ -73,7 +109,7 @@ public sealed class ScreenTests
             .ToList();
 
         Assert.True(clipped.Count == 0, string.Join(" || ", clipped));
-    });
+    }
 
     [Theory]
     [MemberData(nameof(ScreenNames))]
