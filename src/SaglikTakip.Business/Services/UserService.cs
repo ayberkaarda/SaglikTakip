@@ -1,3 +1,5 @@
+using FluentValidation;
+using SaglikTakip.Business.Validation;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.Domain.Repositories;
 
@@ -10,32 +12,19 @@ public interface IUserService
     Task<User> AddAsync(string? name, int age, string? gender, CancellationToken cancellationToken = default);
 }
 
-internal sealed class UserService(IUserRepository users) : IUserService
+internal sealed class UserService(IUserRepository users, IValidator<UserInput> validator) : IUserService
 {
-    internal const int MaxNameLength = 100;
-    internal const int MinAge = 0;
-    internal const int MaxAge = 150;
-
     public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) =>
         users.GetAllAsync(cancellationToken);
 
     public async Task<User> AddAsync(string? name, int age, string? gender, CancellationToken cancellationToken = default)
     {
-        var user = new User
-        {
-            Name = Validation.Required(name, "Ad", MaxNameLength),
-            Age = Validation.Range(age, "Yaş", MinAge, MaxAge),
-            Gender = RequireGender(gender),
-        };
+        var input = UserInput.Create(name, age, gender);
+        validator.ValidateOrThrow(input);
+
+        var user = new User { Name = input.Name, Age = input.Age, Gender = input.Gender };
 
         user.Id = await users.AddAsync(user, cancellationToken).ConfigureAwait(false);
         return user;
-    }
-
-    private static string RequireGender(string? gender)
-    {
-        var trimmed = gender?.Trim();
-        return Genders.All.FirstOrDefault(g => string.Equals(g, trimmed, StringComparison.Ordinal))
-            ?? throw new BusinessRuleException("Lütfen cinsiyet seçin.");
     }
 }

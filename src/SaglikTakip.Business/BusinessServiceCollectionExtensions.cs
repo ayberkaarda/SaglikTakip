@@ -1,6 +1,8 @@
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SaglikTakip.Business.Services;
+using SaglikTakip.Business.Validation;
 
 namespace SaglikTakip.Business;
 
@@ -12,6 +14,9 @@ public static class BusinessServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<IValidator<UserInput>, UserInputValidator>();
+        services.AddSingleton<IValidator<HealthRecordInput>, HealthRecordInputValidator>();
+        services.AddSingleton<IValidator<ExerciseInput>, ExerciseInputValidator>();
         services.AddSingleton<IUserService, UserService>();
         services.AddSingleton<IHealthRecordService, HealthRecordService>();
         services.AddSingleton<IExerciseService, ExerciseService>();
