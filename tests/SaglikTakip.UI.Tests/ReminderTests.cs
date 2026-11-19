@@ -86,10 +86,6 @@ public sealed class ReminderMonitorTests
     }
 }
 
-[CollectionDefinition("SharedTheme", DisableParallelization = true)]
-public sealed class SharedThemeDefinition;
-
-[Collection("SharedTheme")]
 public sealed class HatirlaticiFormTests
 {
     [Fact]

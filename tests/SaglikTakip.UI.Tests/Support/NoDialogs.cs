@@ -2,6 +2,8 @@ using SaglikTakip.UI.Infrastructure;
 using SaglikTakip.UI.Tests.Support;
 
 [assembly: AssemblyFixture(typeof(NoDialogs))]
+// The active theme is shared static state, and a test may switch it (high contrast); the suite takes about two seconds.
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace SaglikTakip.UI.Tests.Support;
 
