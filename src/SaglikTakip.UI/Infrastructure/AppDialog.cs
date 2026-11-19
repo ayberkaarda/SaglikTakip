@@ -102,6 +102,90 @@ public abstract class AppDialog : Form, IStatusSurface
         PerformLayout();
     }
 
+    private bool _sizeFitted;
+
+    /// <inheritdoc />
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+
+        // Measured once the window exists, so the real fonts and metrics decide how fields wrap.
+        if (!_sizeFitted)
+        {
+            _sizeFitted = true;
+            FitSizeToContent();
+        }
+    }
+
+    /// <summary>
+    /// Makes the window large enough for its content: the content has no scrolling, so neither the
+    /// initial size nor the minimum size may cut an input off, also while a two-line message strip is
+    /// shown. The layout is tried at the narrowest width with such a strip and grown until nothing
+    /// overflows; the minimum stays at three quarters of the design size when that is already enough.
+    /// </summary>
+    private void FitSizeToContent()
+    {
+        var design = ClientSize;
+        var trial = new Size(MinimumSize.Width - (Width - ClientSize.Width), MinimumSize.Height - (Height - ClientSize.Height));
+        ShowStatus(StatusKind.Info, "Örnek ileti" + Environment.NewLine + "ikinci satır");
+        try
+        {
+            for (var pass = 0; pass < 4; pass++)
+            {
+                ClientSize = trial;
+                PerformLayout();
+                var overflow = Overflow(this);
+                if (overflow.IsEmpty)
+                {
+                    break;
+                }
+
+                trial += overflow;
+            }
+        }
+        finally
+        {
+            ClearStatus();
+        }
+
+        var fitted = SizeFromClientSize(trial);
+        MinimumSize = new Size(Math.Max(MinimumSize.Width, fitted.Width), Math.Max(MinimumSize.Height, fitted.Height));
+        ClientSize = new Size(Math.Max(design.Width, trial.Width), Math.Max(design.Height, trial.Height));
+        PerformLayout();
+    }
+
+    /// <summary>How far the controls reach beyond the visible area of their containers (right, bottom).</summary>
+    private static Size Overflow(Control root)
+    {
+        var width = 0;
+        var height = 0;
+        foreach (Control child in root.Controls)
+        {
+            if (child is InfoBar { Visible: false } || child.Width == 0 || child.Height == 0)
+            {
+                continue;
+            }
+
+            if (child is not (Label or Panel or TableLayoutPanel or FlowLayoutPanel or GroupBox) && child.Parent is not NumericUpDown)
+            {
+                // Position of the control in the client area of each ancestor, without creating handles.
+                var offset = child.Location;
+                for (var ancestor = child.Parent; ancestor is not null; ancestor = ancestor.Parent)
+                {
+                    width = Math.Max(width, offset.X + child.Width - ancestor.ClientSize.Width);
+                    height = Math.Max(height, offset.Y + child.Height - ancestor.ClientSize.Height);
+                    offset = new Point(offset.X + ancestor.Left, offset.Y + ancestor.Top);
+                }
+            }
+
+            var nested = Overflow(child);
+            width = Math.Max(width, nested.Width);
+            height = Math.Max(height, nested.Height);
+        }
+
+        return new Size(width, height);
+    }
+
     private static (FlowLayoutPanel Actions, Label Note, Control Footer) BuildFooter()
     {
         var footer = new TableLayoutPanel

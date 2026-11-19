@@ -51,6 +51,32 @@ public sealed class ScreenTests
 
     [Theory]
     [MemberData(nameof(ScreenNames))]
+    public void Screen_MinimumSizeWithStatus_KeepsInputsReachable(string name) => Run(() =>
+    {
+        using var form = Create(name);
+        CreateHandles(form);
+        form.Size = form.MinimumSize;
+        if (form is AppDialog dialog)
+        {
+            dialog.ShowStatus(StatusKind.Warning, "Ölçüm hedef sınırlarının dışında." + Environment.NewLine + "Değeri düzeltip yeniden kaydedin.");
+        }
+
+        form.PerformLayout();
+
+        var clipped = Descendants(form)
+            .Where(control => control.Width > 0 && control.Height > 0) // A form that is never shown reports every control as not visible.
+            .Where(control => control is not (Label or Panel or TableLayoutPanel or FlowLayoutPanel or GroupBox or InfoBar) && control.Parent is not NumericUpDown)
+            .Where(control => control is not ScrollBar)
+            .Select(control => (Control: control, Cutter: CuttingAncestor(control)))
+            .Where(item => item.Cutter is not null)
+            .Select(item => $"{item.Control.Name} ({item.Control.GetType().Name}) is cut off by {item.Cutter!.Name} {item.Cutter.ClientRectangle}, window {form.ClientSize}")
+            .ToList();
+
+        Assert.True(clipped.Count == 0, string.Join(" || ", clipped));
+    });
+
+    [Theory]
+    [MemberData(nameof(ScreenNames))]
     public void Screen_UsesThemedButtonsAndAKeyboardWayOut(string name) => Run(() =>
     {
         using var form = Create(name);
@@ -184,6 +210,32 @@ public sealed class ScreenTests
                 yield return nested;
             }
         }
+    }
+
+    /// <summary>
+    /// The ancestor that cuts the control off, or null when it lies inside the client area of every
+    /// ancestor up to the first one that scrolls.
+    /// </summary>
+    private static Control? CuttingAncestor(Control control)
+    {
+        const int Tolerance = 1; // Field wrappers are measured before the combo box handle settles its height.
+        var area = control.Parent!.RectangleToScreen(control.Bounds);
+        for (var ancestor = control.Parent; ancestor is not null; ancestor = ancestor.Parent)
+        {
+            if (ancestor is ScrollableControl { AutoScroll: true })
+            {
+                return null; // Whatever it holds is reachable by scrolling, and it is checked against the outer containers by its own bounds.
+            }
+
+            var visible = ancestor.RectangleToScreen(ancestor.ClientRectangle);
+            visible.Inflate(Tolerance, Tolerance);
+            if (!visible.Contains(area))
+            {
+                return ancestor;
+            }
+        }
+
+        return null;
     }
 
     private static bool IsInsideParent(Control control)
