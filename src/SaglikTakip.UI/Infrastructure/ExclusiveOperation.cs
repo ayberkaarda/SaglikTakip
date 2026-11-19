@@ -14,6 +14,16 @@ public sealed class ExclusiveOperation
     /// <summary>Whether an operation started through <see cref="RunAsync"/> has not finished yet.</summary>
     public bool IsRunning { get; private set; }
 
+    private Control? _focusAfterUnlock;
+
+    /// <summary>
+    /// Chooses the control that receives the focus once the guarded controls are enabled again. A
+    /// disabled control cannot take the focus, so the action only records the target and the focus is
+    /// moved after the unlock; a closed form or a disposed control is skipped. Only the run that is
+    /// pending can record a target, because an ignored call never reaches its action.
+    /// </summary>
+    public void FocusAfterUnlock(Control? target) => _focusAfterUnlock = target;
+
     /// <summary>
     /// Runs <paramref name="action"/> unless another run is pending. The given controls are disabled
     /// for the duration and their previous <see cref="Control.Enabled"/> state is restored afterwards,
@@ -31,6 +41,7 @@ public sealed class ExclusiveOperation
         }
 
         IsRunning = true;
+        _focusAfterUnlock = null;
         var previousStates = new bool[controls.Length];
         try
         {
@@ -54,6 +65,12 @@ public sealed class ExclusiveOperation
             }
 
             IsRunning = false;
+            var target = _focusAfterUnlock;
+            _focusAfterUnlock = null;
+            if (target is { IsDisposed: false, Enabled: true } && target.FindForm() is { IsDisposed: false })
+            {
+                target.Select();
+            }
         }
     }
 }

@@ -6,12 +6,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>SaglikTakip.UI</RootNamespace>
     <AssemblyName>SaglikTakip</AssemblyName>
-    <Product>SaglikTakip</Product>
+    <Product>Sağlık Takip</Product>
     <NeutralLanguage>tr-TR</NeutralLanguage>
-    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon Condition="Exists('$(MSBuildThisFileDirectory)..\..\assets\app.ico')">..\..\assets\app.ico</ApplicationIcon>
     <UserSecretsId>saglik-takip-ui</UserSecretsId>
-    <!-- The forms embed images (Bitmap/Icon) in their .resx files. -->
-    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,19 +19,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
+    <!-- Generated from assets/logo.svg by tools/Screenshots (icons command). -->
+    <EmbeddedResource Condition="Exists('$(MSBuildThisFileDirectory)..\..\assets\app.ico')" Include="..\..\assets\app.ico" LogicalName="SaglikTakip.UI.app.ico" Link="app.ico" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="SaglikTakip.UI.Tests" />
+    <InternalsVisibleTo Include="SaglikTakip.Screenshots" />
   </ItemGroup>
 
   <ItemGroup>

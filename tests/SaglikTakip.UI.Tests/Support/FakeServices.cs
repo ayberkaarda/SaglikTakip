@@ -15,6 +15,9 @@ internal sealed class PendingUserService : IUserService
 
     public List<User> Users { get; } = [];
 
+    /// <summary>Completes the pending <see cref="AddAsync"/> call.</summary>
+    public void CompleteAdd() => _pending.SetResult(new User { Id = 1, Name = "Ayşe", Age = 34, Gender = Genders.Female });
+
     public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<User>>(Users);
 

@@ -4,15 +4,18 @@ using SaglikTakip.Business.Insights;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
+using SaglikTakip.UI.Theming;
 using Serilog;
 
 namespace SaglikTakip.UI
 {
     /// <summary>Weight or pulse of the selected user over a date range, with summary and moving average.</summary>
-    public sealed class TrendForm : Form
+    public sealed class TrendForm : AppDialog
     {
         internal const string Loading = "Yükleniyor…";
         internal const string NoUser = "Grafik için bir kullanıcı seçin.";
+        internal const string NoData = "Seçilen aralıkta ölçüm yok.";
+        private const string Dash = "—";
 
         private readonly IUserService _userService;
         private readonly ITrendService _trendService;
@@ -20,7 +23,7 @@ namespace SaglikTakip.UI
         private readonly RequestSequence _trendRequests = new();
 
         private readonly ComboBox _userPicker = FormLayout.UserPicker();
-        private readonly ComboBox _metricPicker = new() { Name = "metricPicker", DropDownStyle = ComboBoxStyle.DropDownList, Width = 90 };
+        private readonly ComboBox _metricPicker = FormLayout.Picker("metricPicker", 120);
         private readonly DateTimePicker _from;
         private readonly DateTimePicker _to;
         private readonly NumericUpDown _window = new()
@@ -29,15 +32,23 @@ namespace SaglikTakip.UI
             Minimum = TrendCalculator.MinWindow,
             Maximum = TrendCalculator.MaxWindow,
             Value = 7,
-            Width = 60,
+            Width = 80,
+            TextAlign = HorizontalAlignment.Right,
         };
 
         private readonly TrendChart _chart = new() { Name = "trendChart", Dock = DockStyle.Fill };
-        private readonly Label _summary = FormLayout.Value("summaryLabel");
-        private readonly Label _goal = FormLayout.Value("goalLabel");
+        private readonly Label _count = FormLayout.Value("countValue");
+        private readonly Label _minimum = FormLayout.Value("minimumValue");
+        private readonly Label _maximum = FormLayout.Value("maximumValue");
+        private readonly Label _average = FormLayout.Value("averageValue");
+        private readonly Label _moving = FormLayout.Value("movingAverageValue");
+        private readonly Label _movingCaption = FormLayout.Hint("Son ölçüm günlerinin ortalaması");
+        private readonly Label _goal = FormLayout.Text("goalLabel");
+        private readonly Label _noAlerts = FormLayout.Hint("Sınır dışı ölçüm yok.");
         private readonly ListBox _alerts = new() { Name = "alertList", Dock = DockStyle.Fill, IntegralHeight = false };
 
         public TrendForm(IUserService userService, ITrendService trendService, IGoalService goalService)
+            : base("Trend Grafikleri", "Kilo ve nabzın seyri, hareketli ortalama ve hedef aralığıyla.", Glyphs.Chart, new Size(1040, 700))
         {
             _userService = userService;
             _trendService = trendService;
@@ -75,7 +86,7 @@ namespace SaglikTakip.UI
             }
 
             var metric = (MetricOption)_metricPicker.SelectedItem!;
-            ShowMessage(Loading);
+            ShowMessage(Loading, loading: true);
             UseWaitCursor = true;
             try
             {
@@ -98,7 +109,7 @@ namespace SaglikTakip.UI
             {
                 if (_trendRequests.IsLatest(request))
                 {
-                    ShowMessage("—");
+                    ShowMessage(Dash);
                     ErrorReporter.Show(ex, this);
                 }
                 else
@@ -115,12 +126,25 @@ namespace SaglikTakip.UI
             }
         }
 
-        private void ShowMessage(string text)
+        private void ShowMessage(string text, bool loading = false)
         {
-            _chart.Clear(text);
-            _summary.Text = string.Empty;
+            if (loading)
+            {
+                _chart.ShowLoading(text);
+            }
+            else
+            {
+                _chart.Clear(text);
+            }
+
+            _chart.AccessibleDescription = text;
+            foreach (var value in new[] { _count, _minimum, _maximum, _average, _moving })
+            {
+                value.Text = Dash;
+            }
+
             _goal.Text = string.Empty;
-            _alerts.Items.Clear();
+            SetAlerts([]);
         }
 
         private void ShowTrend(MetricTrend trend, GoalStatus? status, MetricOption metric)
@@ -130,26 +154,58 @@ namespace SaglikTakip.UI
                 ? (goal?.MinWeight, goal?.MaxWeight)
                 : ((double?)goal?.MinPulse, (double?)goal?.MaxPulse);
 
-            _chart.EmptyText = "Seçilen aralıkta ölçüm yok.";
+            _chart.EmptyText = NoData;
+            _chart.Unit = metric.Unit;
             _chart.SetData(trend.Points, lower, upper);
-            _summary.Text = DescribeSummary(trend, metric.Unit);
+            _chart.AccessibleDescription = DescribeSummary(trend, metric.Unit);
+            ShowStats(trend, metric.Unit);
             _goal.Text = status is null
-                ? "Hedef tanımlı değil."
-                : HedefForm.DescribeStatus(status);
+                ? "Hedef tanımlı değil. Hedefler ekranından hedef ve uyarı sınırları ekleyebilirsiniz."
+                : HedefForm.DescribeStatus(status).Replace("   ", Environment.NewLine, StringComparison.Ordinal);
+            SetAlerts(status?.Alerts.Where(a => a.Metric == metric.Metric).Select(a => GoalEvaluator.Describe(a, CultureInfo.CurrentCulture)) ?? []);
+        }
 
+        private void ShowStats(MetricTrend trend, string unit)
+        {
+            var culture = CultureInfo.CurrentCulture;
+            _movingCaption.Text = string.Format(culture, "Son {0} ölçüm gününün ortalaması", trend.MovingAverageWindow);
+            if (trend.Summary is not { } s)
+            {
+                foreach (var value in new[] { _minimum, _maximum, _average, _moving })
+                {
+                    value.Text = Dash;
+                }
+
+                _count.Text = "0";
+                return;
+            }
+
+            string Format(double value) => value.ToString("0.#", culture) + " " + unit;
+            var lastAverage = trend.Points.Count > 0 ? trend.Points[^1].MovingAverage : null;
+            _count.Text = s.Count.ToString(culture);
+            _minimum.Text = Format(s.Minimum);
+            _maximum.Text = Format(s.Maximum);
+            _average.Text = Format(s.Average);
+            _moving.Text = lastAverage.HasValue ? Format(lastAverage.Value) : "yetersiz veri";
+        }
+
+        private void SetAlerts(IEnumerable<string> alerts)
+        {
             _alerts.BeginUpdate();
             try
             {
                 _alerts.Items.Clear();
-                foreach (var alert in status?.Alerts.Where(a => a.Metric == metric.Metric) ?? [])
+                foreach (var alert in alerts)
                 {
-                    _alerts.Items.Add(GoalEvaluator.Describe(alert, CultureInfo.CurrentCulture));
+                    _alerts.Items.Add(alert);
                 }
             }
             finally
             {
                 _alerts.EndUpdate();
             }
+
+            _noAlerts.Visible = _alerts.Items.Count == 0;
         }
 
         internal static string DescribeSummary(MetricTrend trend, string unit)
@@ -158,7 +214,7 @@ namespace SaglikTakip.UI
 
             if (trend.Summary is not { } s)
             {
-                return "Seçilen aralıkta ölçüm yok.";
+                return NoData;
             }
 
             var culture = CultureInfo.CurrentCulture;
@@ -177,31 +233,95 @@ namespace SaglikTakip.UI
 
         private void BuildLayout()
         {
-            FormLayout.ApplyDefaults(this, "Sağlık Takip | Trend Grafikleri", new Size(860, 520));
             Name = nameof(TrendForm);
 
-            var filters = FormLayout.Row(
-                FormLayout.Caption("Kullanıcı"), _userPicker,
-                FormLayout.Caption("Ölçüm"), _metricPicker,
-                FormLayout.Caption("Başlangıç"), _from,
-                FormLayout.Caption("Bitiş"), _to,
-                FormLayout.Caption("Hareketli ortalama (ölçüm günü)"), _window);
+            var filters = new FlowLayoutPanel
+            {
+                Name = "filters",
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = true,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+            };
+            _userPicker.Width = 280;
+            foreach (var field in new[]
+            {
+                FormLayout.Field("&Kullanıcı", _userPicker),
+                FormLayout.Field("Ö&lçüm", _metricPicker),
+                FormLayout.Field("&Başlangıç", _from),
+                FormLayout.Field("Bi&tiş", _to),
+                FormLayout.Field("&Ortalama (ölçüm günü)", _window),
+            })
+            {
+                field.Dock = DockStyle.None;
+                field.Margin = new Padding(0, 0, Spacing.L, 0);
+                filters.Controls.Add(field);
+            }
 
-            var summaryRow = FormLayout.Row(_summary, _goal);
-            summaryRow.FlowDirection = FlowDirection.TopDown;
-            summaryRow.Dock = DockStyle.Bottom;
+            var stats = new TableLayoutPanel
+            {
+                Name = "stats",
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 5,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+                Padding = new Padding(0, Spacing.L, 0, 0),
+            };
+            (Label Caption, Label Value)[] items =
+            [
+                (FormLayout.Hint("Ölçüm sayısı"), _count),
+                (FormLayout.Hint("En düşük"), _minimum),
+                (FormLayout.Hint("En yüksek"), _maximum),
+                (FormLayout.Hint("Ortalama"), _average),
+                (_movingCaption, _moving),
+            ];
+            for (var i = 0; i < items.Length; i++)
+            {
+                stats.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
+                items[i].Caption.Margin = new Padding(0, 0, Spacing.S, Spacing.XS);
+                items[i].Value.AccessibleName = items[i].Caption.Text;
+                stats.Controls.Add(items[i].Caption, i, 0);
+                stats.Controls.Add(items[i].Value, i, 1);
+            }
 
-            var alertPanel = new Panel { Dock = DockStyle.Right, Width = 260, Padding = new Padding(4) };
-            var alertCaption = FormLayout.Caption("Hedef sınırı dışındaki ölçümler");
-            alertCaption.Dock = DockStyle.Top;
-            alertPanel.Controls.Add(_alerts);
-            alertPanel.Controls.Add(alertCaption);
+            var top = FormLayout.Stack("filterStack", filters, stats);
+            var filterCard = FormLayout.Card("filterCard", null, top, fill: false);
 
-            Controls.Add(_chart);
-            Controls.Add(alertPanel);
-            Controls.Add(summaryRow);
-            Controls.Add(filters);
-            _chart.Clear(NoUser);
+            _goal.AutoSize = false;
+            _goal.Dock = DockStyle.Fill;
+            var goalCard = FormLayout.Card("goalCard", "Hedef durumu", _goal);
+            goalCard.Dock = DockStyle.Top;
+            goalCard.Height = 168;
+
+            _noAlerts.Dock = DockStyle.Top;
+            var alertBody = new Panel { Dock = DockStyle.Fill };
+            alertBody.Controls.Add(_alerts);
+            alertBody.Controls.Add(_noAlerts);
+            var alertCard = FormLayout.Card("alertCard", "Sınır dışı ölçümler", alertBody);
+            alertCard.Margin = Padding.Empty;
+
+            var side = new Panel { Name = "side", Dock = DockStyle.Fill, Margin = new Padding(Spacing.S, 0, 0, Spacing.L) };
+            side.Controls.Add(alertCard);
+            side.Controls.Add(goalCard);
+
+            var chartCard = FormLayout.Card("chartCard", null, _chart);
+            chartCard.Margin = new Padding(0, 0, Spacing.S, Spacing.L);
+            chartCard.Padding = new Padding(Spacing.S, Spacing.M, Spacing.M, Spacing.S);
+
+            var main = new TableLayoutPanel { Name = "main", Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty };
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290));
+            main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            main.Controls.Add(chartCard, 0, 0);
+            main.Controls.Add(side, 1, 0);
+
+            Content.Controls.Add(FormLayout.Page((filterCard, false), (main, true)));
+
+            SetFooterButtons(CreateCloseButton());
+            ShowMessage(NoUser);
+            FinishLayout();
         }
 
         private sealed record MetricOption(HealthMetric Metric, string Text, string Unit)

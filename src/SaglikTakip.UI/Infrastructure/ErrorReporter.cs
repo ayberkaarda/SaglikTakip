@@ -27,11 +27,11 @@ internal static class ErrorReporter
 
         if (exception is BusinessRuleException)
         {
-            MessageBox.Show(owner, exception.Message, "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Dialogs.Show(owner, exception.Message, "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        MessageBox.Show(owner, Describe(exception), Caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        Dialogs.Show(owner, Describe(exception), Caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
     /// <summary>

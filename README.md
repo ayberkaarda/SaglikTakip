@@ -212,20 +212,35 @@ See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for the threat model.
 
 ## 🖥️ Screenshots
 
+Rendered without opening a window by `tools/Screenshots` from invented sample data; a 2x version of each
+image is stored next to it (`*-2x.png`).
+
 ### "Ana Sayfa" (Main menu)
-![Main menu](screenshots/anasayfa.png)
+![Main menu](screenshots/ana-sayfa.png)
 
 ### "Kullanıcı Ekle" (Add user)
-![Add user](screenshots/hasta_ekle.png)
+![Add user](screenshots/kullanici-ekle.png)
 
 ### "Sağlık Kaydı Ekle" (Add health record)
-![Add health record](screenshots/hasta_bilgileri.png)
+![Add health record](screenshots/saglik-kaydi.png)
 
 ### "Egzersiz Planla" (Plan exercise)
-![Plan exercise](screenshots/spor_ekle.png)
+![Plan exercise](screenshots/egzersiz-planla.png)
 
 ### "Rapor Görüntüle" (View report)
 ![View report](screenshots/rapor.png)
+
+### "Trend Grafikleri" (Trend charts)
+![Trend charts](screenshots/trend-grafigi.png)
+
+### "Hedefler" (Goals)
+![Goals](screenshots/hedefler.png)
+
+### "Hatırlatıcılar" (Reminders)
+![Reminders](screenshots/hatirlaticilar.png)
+
+### "Dönem Raporu" (Period report)
+![Period report](screenshots/donem-raporu.png)
 
 ---
 

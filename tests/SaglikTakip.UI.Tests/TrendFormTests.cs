@@ -64,6 +64,24 @@ public sealed class TrendFormTests
     });
 
     [Fact]
+    public void Loading_IsShownUntilTheAnswerArrives() => Run(() =>
+    {
+        var trends = new ControlledTrendService();
+        using var form = new TrendForm(new PendingUserService(), trends, new ControlledGoalService { AnswerImmediately = true });
+        var picker = Find<ComboBox>(form, "userPicker");
+        var chart = Find<TrendChart>(form, "trendChart");
+        picker.Items.Add(new User { Id = 1, Name = "Ali", Age = 40, Gender = Genders.Male });
+
+        picker.SelectedIndex = 0;
+        Assert.True(chart.IsLoading);
+        Assert.Equal(TrendForm.Loading, chart.EmptyText);
+
+        trends.Respond(1);
+        Assert.False(chart.IsLoading);
+        Assert.Equal(TrendForm.NoData, chart.EmptyText); // An empty range explains itself.
+    });
+
+    [Fact]
     public void Chart_RendersOffscreenWithAndWithoutData() => Run(() =>
     {
         using var chart = new TrendChart { Size = new Size(400, 240) };
@@ -102,6 +120,31 @@ public sealed class ChartScaleTests
         Assert.Equal(35f, ChartScale.MapX(first.AddDays(1), first, first.AddDays(4), Plot));
         Assert.Equal(110f, ChartScale.MapX(first.AddDays(4), first, first.AddDays(4), Plot));
         Assert.Equal(60f, ChartScale.MapX(first, first, first, Plot));
+    }
+
+    [Fact]
+    public void NiceTicks_UseRoundStepsThatCoverTheRange()
+    {
+        Assert.Equal([50d, 60d, 70d, 80d, 90d], ChartScale.NiceTicks(59, 81, 5));
+        Assert.Equal([68d, 70d, 72d, 74d, 76d, 78d], ChartScale.NiceTicks(68.9, 77.6, 5));
+
+        var ticks = ChartScale.NiceTicks(70, 70, 5);
+        Assert.True(ticks[0] <= 69 && ticks[^1] >= 71);
+        Assert.All(ticks.Zip(ticks.Skip(1)), pair => Assert.True(pair.Second > pair.First));
+    }
+
+    [Fact]
+    public void DateTicks_IncludeBothEndsWithoutCrowding()
+    {
+        var first = new DateTime(2026, 10, 21);
+
+        var month = ChartScale.DateTicks(first, first.AddDays(29), 8);
+        Assert.Equal(first, month[0]);
+        Assert.Equal(first.AddDays(29), month[^1]);
+        Assert.True(month.Count <= 8);
+        Assert.All(month.Zip(month.Skip(1)), pair => Assert.True((pair.Second - pair.First).TotalDays >= 2));
+
+        Assert.Equal([first], ChartScale.DateTicks(first, first, 5));
     }
 
     [Fact]

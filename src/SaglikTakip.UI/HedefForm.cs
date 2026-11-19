@@ -4,12 +4,13 @@ using SaglikTakip.Business.Services;
 using SaglikTakip.Business.Validation;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
+using SaglikTakip.UI.Theming;
 using Serilog;
 
 namespace SaglikTakip.UI
 {
     /// <summary>Goal weight, alert limits and goal progress of the selected user.</summary>
-    public sealed class HedefForm : Form
+    public sealed class HedefForm : AppDialog
     {
         internal const string NoUser = "Bir kullanıcı seçin.";
         internal const string Loading = "Yükleniyor…";
@@ -26,30 +27,33 @@ namespace SaglikTakip.UI
         private readonly OptionalNumberInput _maxWeight = new("maxWeight", 1, 200, 1, 90);
         private readonly OptionalNumberInput _minPulse = new("minPulse", 1, 250, 0, 50);
         private readonly OptionalNumberInput _maxPulse = new("maxPulse", 1, 250, 0, 100);
-        private readonly Label _status = FormLayout.Value("statusLabel");
-        private readonly Button _save = FormLayout.Button("btnKaydet", "Kaydet");
-        private readonly Button _delete = FormLayout.Button("btnSil", "Hedefi Sil");
+        private readonly Label _status = FormLayout.Text("statusLabel");
+        private readonly Button _save = FormLayout.Button("btnKaydet", "Kaydet", ButtonKind.Primary);
+        private readonly Button _delete = FormLayout.Button("btnSil", "Hedefi Sil", ButtonKind.Danger);
         private readonly TableLayoutPanel _editor;
 
         /// <summary>User whose goal is on screen; <see langword="null"/> while loading or after a failure.</summary>
         private int? _loadedUserId;
 
         public HedefForm(IUserService userService, IGoalService goalService)
+            : base("Hedefler", "Hedef kiloyu ve ölçümler için uyarı sınırlarını belirleyin.", Glyphs.Target, new Size(760, 560))
         {
             _userService = userService;
             _goalService = goalService;
-            _editor = FormLayout.Grid(
-                ("Hedef kilo (kg)", _targetWeight),
-                ("Başlangıç kilosu (kg)", _startWeight),
-                ("En düşük kilo (kg)", _minWeight),
-                ("En yüksek kilo (kg)", _maxWeight),
-                ("En düşük nabız", _minPulse),
-                ("En yüksek nabız", _maxPulse));
+            _editor = FormLayout.Fields(
+                "goalEditor",
+                [FormLayout.Field("&Hedef kilo (kg)", _targetWeight), FormLayout.Field("&Başlangıç kilosu (kg)", _startWeight)],
+                [FormLayout.Field("En &düşük kilo (kg)", _minWeight), FormLayout.Field("En &yüksek kilo (kg)", _maxWeight)],
+                [FormLayout.Field("En düşük &nabız", _minPulse), FormLayout.Field("En yüksek n&abız", _maxPulse)]);
             BuildLayout();
             SetEditorEnabled(false);
 
             Load += async (_, _) => await this.RunAsync(() => _userPicker.LoadUsersAsync(_userService));
-            _userPicker.SelectedIndexChanged += async (_, _) => await LoadSelectedGoalAsync();
+            _userPicker.SelectedIndexChanged += async (_, _) =>
+            {
+                ClearStatus();
+                await LoadSelectedGoalAsync();
+            };
             _save.Click += async (_, _) => await SaveAsync();
             _delete.Click += async (_, _) => await DeleteAsync();
         }
@@ -68,12 +72,12 @@ namespace SaglikTakip.UI
 
             if (_userPicker.SelectedItem is not User user)
             {
-                _status.Text = NoUser;
+                SetStatusText(NoUser);
                 UseWaitCursor = false;
                 return;
             }
 
-            _status.Text = Loading;
+            SetStatusText(Loading);
             UseWaitCursor = true;
             try
             {
@@ -81,7 +85,7 @@ namespace SaglikTakip.UI
                 if (_goalRequests.IsLatest(request))
                 {
                     ShowGoal(status?.Goal);
-                    _status.Text = DescribeStatus(status);
+                    SetStatusText(DescribeStatus(status));
                     _loadedUserId = user.Id;
                     SetEditorEnabled(true);
                 }
@@ -92,7 +96,7 @@ namespace SaglikTakip.UI
             {
                 if (_goalRequests.IsLatest(request))
                 {
-                    _status.Text = "—";
+                    SetStatusText("—");
                     ErrorReporter.Show(ex, this);
                 }
                 else
@@ -122,7 +126,7 @@ namespace SaglikTakip.UI
 
                 await _goalService.SaveAsync(userId, ReadInput());
                 saved = true;
-                MessageBox.Show(this, "Hedef kaydedildi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowStatus(StatusKind.Success, "Hedef kaydedildi.");
             },
             _save, _delete, _userPicker, _editor);
 
@@ -143,14 +147,16 @@ namespace SaglikTakip.UI
                     return;
                 }
 
-                var answer = MessageBox.Show(
-                    this, "Bu kullanıcının hedefi silinsin mi?", "Onay", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                if (answer != DialogResult.Yes)
+                if (!Dialogs.Confirm(this, "Bu kullanıcının hedefi silinsin mi?"))
                 {
                     return;
                 }
 
                 deleted = await _goalService.DeleteAsync(userId);
+                if (deleted)
+                {
+                    ShowStatus(StatusKind.Info, "Hedef silindi.");
+                }
             },
             _save, _delete, _userPicker, _editor);
 
@@ -197,25 +203,40 @@ namespace SaglikTakip.UI
             _delete.Enabled = enabled;
         }
 
+        /// <summary>The status lines are joined by wide spaces for single-line use; here each gets its own line.</summary>
+        private void SetStatusText(string text) =>
+            _status.Text = text.Replace("   ", Environment.NewLine, StringComparison.Ordinal);
+
         private void BuildLayout()
         {
-            FormLayout.ApplyDefaults(this, "Sağlık Takip | Hedefler", new Size(620, 360));
             Name = nameof(HedefForm);
+            var layout = new TableLayoutPanel { Name = "layout", Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2 };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            var close = FormLayout.Button("btnKapat", "Kapat");
-            close.Click += (_, _) => Close();
-            var buttons = FormLayout.Row(_save, _delete, close);
-            buttons.Dock = DockStyle.Bottom;
-            var hint = FormLayout.Row(FormLayout.Caption(
-                "İşaretlenmeyen değerler boş kalır. Sınırlar dahildir: sınıra eşit ölçüm uyarı vermez."));
+            var picker = FormLayout.Field("&Kullanıcı", _userPicker);
+            picker.Dock = DockStyle.None;
+            picker.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+            _userPicker.Width = 320;
+            _userPicker.Anchor = AnchorStyles.Left;
+            layout.Controls.Add(picker, 0, 0);
+            layout.SetColumnSpan(picker, 2);
 
-            var statusRow = FormLayout.Row(_status);
-            Controls.Add(statusRow);
-            Controls.Add(hint);
-            Controls.Add(_editor);
-            Controls.Add(FormLayout.Row(FormLayout.Caption("Kullanıcı"), _userPicker));
-            Controls.Add(buttons);
-            _status.Text = NoUser;
+            var editor = FormLayout.Card("goalCard", "Hedef ve uyarı sınırları", _editor);
+            editor.Margin = new Padding(0, 0, Spacing.S, Spacing.L);
+            var status = FormLayout.Card("statusCard", "Durum", _status);
+            status.Margin = new Padding(Spacing.S, 0, 0, Spacing.L);
+            _status.AutoSize = false;
+            layout.Controls.Add(editor, 0, 1);
+            layout.Controls.Add(status, 1, 1);
+            Content.Controls.Add(layout);
+
+            SetFooterNote("İşaretlenmeyen değerler boş kalır. Sınırlar dahildir: sınıra eşit ölçüm uyarı vermez.");
+            SetFooterButtons(_save, _delete, CreateCloseButton());
+            SetStatusText(NoUser);
+            FinishLayout();
         }
     }
 }

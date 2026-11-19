@@ -8,12 +8,13 @@ using SaglikTakip.Business.Reporting;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
+using SaglikTakip.UI.Theming;
 using Serilog;
 
 namespace SaglikTakip.UI
 {
     /// <summary>Weekly or monthly summary of the selected user with CSV and printable HTML export.</summary>
-    public sealed class DonemRaporuForm : Form
+    public sealed class DonemRaporuForm : AppDialog
     {
         internal const string NoUser = "Rapor için bir kullanıcı seçin.";
         internal const string Loading = "Yükleniyor…";
@@ -33,16 +34,17 @@ namespace SaglikTakip.UI
             Multiline = true,
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
-            Font = new Font("Consolas", 9.75F),
-            BackColor = SystemColors.Window,
+            BorderStyle = BorderStyle.None,
+            Font = Theme.Fonts.Mono,
         };
 
         private readonly Button _csv = FormLayout.Button("btnCsv", "CSV olarak kaydet");
-        private readonly Button _html = FormLayout.Button("btnHtml", "Yazdırılabilir rapor (HTML)");
+        private readonly Button _html = FormLayout.Button("btnHtml", "Yazdırılabilir rapor (HTML)", ButtonKind.Primary);
         private readonly Button[] _presets;
         private bool _applyingPreset;
 
         public DonemRaporuForm(IUserService userService, IPeriodReportService reportService)
+            : base("Dönem Raporu", "Haftalık ya da aylık özet; CSV veya yazdırılabilir HTML olarak kaydedin.", Glyphs.Calendar, new Size(900, 640))
         {
             _userService = userService;
             _reportService = reportService;
@@ -58,7 +60,7 @@ namespace SaglikTakip.UI
                 Preset("btnGecenAy", "Geçen ay", () => DayRanges.PreviousMonth(DateTime.Today)),
             ];
             ChoosePath = AskForPath;
-            OfferToOpen = _ => MessageBox.Show(
+            OfferToOpen = _ => Dialogs.Show(
                 this,
                 "Rapor kaydedildi. Yazdırmak veya PDF olarak kaydetmek için tarayıcıda açılsın mı?",
                 "Bilgi",
@@ -139,7 +141,8 @@ namespace SaglikTakip.UI
             {
                 if (_userPicker.SelectedItem is not User user)
                 {
-                    MessageBox.Show(this, "Lütfen bir kullanıcı seçin.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ShowStatus(StatusKind.Warning, "Lütfen bir kullanıcı seçin.");
+                    _export.FocusAfterUnlock(_userPicker);
                     return;
                 }
 
@@ -160,7 +163,7 @@ namespace SaglikTakip.UI
                 }
                 else if (format == ReportFormat.Csv)
                 {
-                    MessageBox.Show(this, "Rapor kaydedildi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ShowStatus(StatusKind.Success, "Rapor kaydedildi.");
                 }
             },
             [_csv, _html, _userPicker, _from, _to, .. _presets]);
@@ -222,9 +225,10 @@ namespace SaglikTakip.UI
             }
         }
 
-        private Button Preset(string name, string text, Func<(DateTime First, DateTime Last)> range)
+        private ThemedButton Preset(string name, string text, Func<(DateTime First, DateTime Last)> range)
         {
             var button = FormLayout.Button(name, text);
+            button.MinimumSize = new Size(0, Sizes.ControlHeight);
             button.Click += async (_, _) =>
             {
                 var (first, last) = range();
@@ -260,25 +264,41 @@ namespace SaglikTakip.UI
 
         private void BuildLayout()
         {
-            FormLayout.ApplyDefaults(this, "Sağlık Takip | Dönem Raporu", new Size(760, 520));
             Name = nameof(DonemRaporuForm);
 
-            var filters = FormLayout.Row(
-                FormLayout.Caption("Kullanıcı"), _userPicker,
-                FormLayout.Caption("Başlangıç"), _from,
-                FormLayout.Caption("Bitiş"), _to);
-            var presets = FormLayout.Row(_presets);
+            _userPicker.Width = 300;
+            var filters = new FlowLayoutPanel
+            {
+                Name = "filters",
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = true,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+            };
+            foreach (var field in new[]
+            {
+                FormLayout.Field("&Kullanıcı", _userPicker),
+                FormLayout.Field("&Başlangıç", _from),
+                FormLayout.Field("Bi&tiş", _to),
+            })
+            {
+                field.Dock = DockStyle.None;
+                filters.Controls.Add(field);
+            }
 
-            var close = FormLayout.Button("btnKapat", "Kapat");
-            close.Click += (_, _) => Close();
-            var actions = FormLayout.Row(_csv, _html, close);
-            actions.Dock = DockStyle.Bottom;
+            var presetCaption = FormLayout.Hint("Hızlı seçim");
+            presetCaption.Margin = new Padding(0, Spacing.M, Spacing.S, 0);
+            var presets = FormLayout.Row([presetCaption, .. _presets]);
+            var filterBody = FormLayout.Stack("filterStack", filters, presets);
+            var filterCard = FormLayout.Card("filterCard", null, filterBody, fill: false);
 
-            Controls.Add(_preview);
-            Controls.Add(actions);
-            Controls.Add(presets);
-            Controls.Add(filters);
+            var previewCard = FormLayout.Card("previewCard", "Önizleme", _preview);
+            Content.Controls.Add(FormLayout.Page((filterCard, false), (previewCard, true)));
+
+            SetFooterButtons(_html, _csv, CreateCloseButton());
             _preview.Text = NoUser;
+            FinishLayout();
         }
     }
 }

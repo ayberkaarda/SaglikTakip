@@ -1,31 +1,42 @@
 ﻿using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
+using SaglikTakip.UI.Theming;
 
 namespace SaglikTakip.UI
 {
     /// <summary>Adds an exercise for a user.</summary>
-    public partial class EgzersizKayitForm : Form
+    public sealed class EgzersizKayitForm : AppDialog
     {
         private readonly IUserService _userService;
         private readonly IExerciseService _exerciseService;
         private readonly ExclusiveOperation _save = new();
 
+        private readonly ThemedComboBox comboBox1 = FormLayout.UserPicker("comboBox1");
+        private readonly TextBox textBox1 = new() { Name = "textBox1", MaxLength = 100, PlaceholderText = "Örn. Tempolu yürüyüş" };
+        private readonly NumericUpDown numericUpDown1 = new() { Name = "numericUpDown1", Width = 120, TextAlign = HorizontalAlignment.Right };
+        private readonly NumericUpDown numericUpDown2 = new() { Name = "numericUpDown2", Width = 120, TextAlign = HorizontalAlignment.Right };
+        private readonly Button btnKaydet = FormLayout.Button("btnKaydet", "Kaydet", ButtonKind.Primary);
+        private readonly Button btnkapat;
+
         public EgzersizKayitForm(IUserService userService, IExerciseService exerciseService)
+            : base("Egzersiz Planla", "Egzersizi kişiye ekleyin; süre dakika olarak girilir.", Glyphs.Run, new Size(560, 460))
         {
             _userService = userService;
             _exerciseService = exerciseService;
-            InitializeComponent();
-        }
+            btnkapat = CreateCloseButton("btnkapat");
+            btnKaydet.Click += async (_, _) => await SaveAsync();
+            Load += async (_, _) => await this.RunAsync(() => comboBox1.LoadUsersAsync(_userService));
 
-        private async void EgzersizKayitForm_Load_1(object sender, EventArgs e)
-        {
-            await this.RunAsync(() => comboBox1.LoadUsersAsync(_userService));
-        }
-
-        private async void btnKaydet_Click(object sender, EventArgs e)
-        {
-            await SaveAsync();
+            var fields = FormLayout.Fields(
+                "fields",
+                [FormLayout.Field("&Kullanıcı", comboBox1)],
+                [FormLayout.Field("&Egzersiz adı", textBox1)],
+                [FormLayout.Field("&Süre (dk)", numericUpDown1), FormLayout.Field("&Tekrar sayısı", numericUpDown2)]);
+            Content.Controls.Add(FormLayout.Page((FormLayout.Card("exerciseCard", "Egzersiz", fields, fill: false), false)));
+            SetFooterButtons(btnKaydet, btnkapat);
+            AcceptButton = btnKaydet;
+            FinishLayout();
         }
 
         /// <summary>Saves the entered exercise; ignored while a previous save is still pending.</summary>
@@ -35,13 +46,15 @@ namespace SaglikTakip.UI
             {
                 if (comboBox1.SelectedItem is not User user)
                 {
-                    MessageBox.Show(this, "Lütfen bir kullanıcı seçiniz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ShowStatus(StatusKind.Warning, "Lütfen bir kullanıcı seçiniz.");
+                    _save.FocusAfterUnlock(comboBox1);
                     return;
                 }
 
                 if (string.IsNullOrWhiteSpace(textBox1.Text))
                 {
-                    MessageBox.Show(this, "Egzersiz adını giriniz.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ShowStatus(StatusKind.Warning, "Egzersiz adını giriniz.");
+                    _save.FocusAfterUnlock(textBox1);
                     return;
                 }
 
@@ -51,24 +64,15 @@ namespace SaglikTakip.UI
                     (int)numericUpDown1.Value,
                     (int)numericUpDown2.Value);
 
-                MessageBox.Show("Egzersiz kaydedildi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowStatus(StatusKind.Success, "Egzersiz kaydedildi.");
 
                 textBox1.Clear();
                 numericUpDown1.Value = 0;
                 numericUpDown2.Value = 0;
                 comboBox1.SelectedIndex = -1;
+                _save.FocusAfterUnlock(comboBox1);
             },
             btnKaydet, btnkapat, comboBox1, textBox1, numericUpDown1, numericUpDown2);
-        }
-
-        private void btnkapat_Click(object sender, EventArgs e)
-        {
-            Close();
-        }
-
-        private void btnAsagial_Click(object sender, EventArgs e)
-        {
-            WindowState = FormWindowState.Minimized;
         }
     }
 }
