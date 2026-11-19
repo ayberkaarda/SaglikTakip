@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Central theme for the user interface: color, type, spacing and corner radius tokens, a light palette by default
+  and an optional dark palette or the Windows app mode (`Appearance:Theme` = `Light`, `Dark` or `System`); with
+  Windows high contrast the system colors are used unchanged.
+- Original application logo and icon (`assets/logo.svg`, rasterized into `assets/app.ico`).
+- `tools/Screenshots`: renders the README images at 1x and 2x from invented sample data without opening a window,
+  and generates the icon from the logo.
+- Tests for palette contrast (WCAG), token scales, theme selection, building every screen without showing it,
+  layout inside the window, tab order and inline messages.
 - Trend charts ("Trend Grafikleri") for weight and pulse over a date range, drawn with GDI+, with count,
   minimum, maximum, average and a trailing moving average (1-90 days); same-day measurements are combined.
 - Goals and alert limits ("Hedefler"): target and start weight, weight and pulse ranges (inclusive), a warning
@@ -36,6 +44,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- New design with a neutral "Sağlık Takip" identity: the government style name, background artwork and logo are
+  gone. Every screen shares one frame (header, inline message strip, content cards, actions in the footer) in a
+  standard resizable window with a minimum size, per-monitor DPI scaling, access keys and Esc to close.
+- The main menu groups the screens as tiles under "Kayıtlar", "Takip ve analiz" and "Planlama".
+- The trend chart uses the theme colors, a series pair that stays distinct for color vision deficiencies, a band
+  for the goal range, round axis steps, marked out-of-range measurements, a label on the latest value and
+  loading and empty states.
+- Results and validation messages appear inside the window instead of message boxes and move the focus to the
+  field to correct; confirmations and unexpected errors still use a dialog.
+- The report screen shows its record lists, which were placed outside the window before, and the latest values
+  as cards.
+- New screenshots with kebab-case file names.
 - The main menu has four more buttons for the new screens.
 - Saving a health record also checks the user's goal limits.
 - The hand-written validation helper was replaced by the validators; messages, trimming and the order of the

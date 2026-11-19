@@ -210,20 +210,35 @@ Tehdit modeli için [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) dosyasına bak�
 
 ## 🖥️ Ekran Görüntüleri
 
+Görüntüler `tools/Screenshots` aracıyla, pencere açılmadan ve uydurma örnek verilerle üretilir; her görüntünün
+2x sürümü yanında durur (`*-2x.png`).
+
 ### Ana Sayfa
-![Ana Sayfa](screenshots/anasayfa.png)
+![Ana Sayfa](screenshots/ana-sayfa.png)
 
-### Kullanıcı (Hasta) Ekle
-![Hasta Ekle](screenshots/hasta_ekle.png)
+### Kullanıcı Ekle
+![Kullanıcı Ekle](screenshots/kullanici-ekle.png)
 
-### Sağlık Bilgileri Ekle
-![Hasta Bilgileri](screenshots/hasta_bilgileri.png)
+### Sağlık Kaydı Ekle
+![Sağlık Kaydı Ekle](screenshots/saglik-kaydi.png)
 
-### Egzersiz Ekle
-![Spor Ekle](screenshots/spor_ekle.png)
+### Egzersiz Planla
+![Egzersiz Planla](screenshots/egzersiz-planla.png)
 
 ### Rapor Görüntüle
-![Rapor](screenshots/rapor.png)
+![Rapor Görüntüle](screenshots/rapor.png)
+
+### Trend Grafikleri
+![Trend Grafikleri](screenshots/trend-grafigi.png)
+
+### Hedefler
+![Hedefler](screenshots/hedefler.png)
+
+### Hatırlatıcılar
+![Hatırlatıcılar](screenshots/hatirlaticilar.png)
+
+### Dönem Raporu
+![Dönem Raporu](screenshots/donem-raporu.png)
 
 ---
 

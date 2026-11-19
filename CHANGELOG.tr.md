@@ -9,6 +9,14 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/) temel alınar
 
 ### Eklenenler
 
+- Arayüz için merkezi tema: renk, yazı, boşluk ve köşe yarıçapı değerleri; varsayılan açık palet, isteğe bağlı koyu
+  palet ya da Windows uygulama modu (`Appearance:Theme` = `Light`, `Dark` veya `System`); Windows yüksek karşıtlık
+  açıkken sistem renkleri değiştirilmeden kullanılır.
+- Özgün uygulama logosu ve simgesi (`assets/logo.svg`, `assets/app.ico` olarak rasterleştirilir).
+- `tools/Screenshots`: README görüntülerini uydurma örnek verilerle, pencere açmadan 1x ve 2x olarak üretir; simgeyi
+  logodan oluşturur.
+- Palet karşıtlığı (WCAG), değer ölçekleri, tema seçimi, her ekranın gösterilmeden oluşturulması, yerleşimin pencere
+  içinde kalması, sekme sırası ve pencere içi mesajlar için testler.
 - Kilo ve nabız için bir tarih aralığında GDI+ ile çizilen trend grafikleri ("Trend Grafikleri"); ölçüm sayısı,
   en düşük, en yüksek, ortalama ve geriye dönük hareketli ortalama (1-90 gün); aynı gündeki ölçümler birleştirilir.
 - Hedefler ve uyarı eşikleri ("Hedefler"): hedef ve başlangıç kilosu, kilo ve nabız aralıkları (sınırlar dahil),
@@ -35,6 +43,16 @@ Biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/) temel alınar
 
 ### Değişenler
 
+- Nötr "Sağlık Takip" kimliğiyle yeni tasarım: resmi kurum izlenimi veren ad, arka plan görseli ve logo kaldırıldı.
+  Tüm ekranlar aynı çerçeveyi (başlık, pencere içi mesaj şeridi, içerik kartları, altta eylemler) paylaşır; standart,
+  boyutlandırılabilir pencere, en küçük boyut, monitör başına DPI ölçekleme, erişim tuşları ve Esc ile kapatma.
+- Ana menü ekranları "Kayıtlar", "Takip ve analiz" ve "Planlama" başlıkları altında kutucuklar olarak gruplar.
+- Trend grafiği tema renklerini, renk körlüğünde de ayırt edilen bir seri çiftini, hedef aralığı için bir bandı,
+  yuvarlak eksen adımlarını, işaretli sınır dışı ölçümleri, son değer etiketini ve yükleniyor/boş durumlarını kullanır.
+- Sonuç ve doğrulama mesajları ileti kutusu yerine pencerenin içinde gösterilir ve odak düzeltilecek alana taşınır;
+  onaylar ve beklenmeyen hatalar yine iletişim kutusuyla sorulur.
+- Rapor ekranı, önceden pencerenin dışında kalan kayıt listelerini ve son değerleri kartlar halinde gösterir.
+- Yeni, kebab-case adlı ekran görüntüleri.
 - Ana menüde yeni ekranlar için dört düğme daha var.
 - Sağlık kaydı kaydedilirken kullanıcının hedef sınırları da denetlenir.
 - Elle yazılmış doğrulama yardımcısı doğrulayıcılarla değiştirildi; mesajlar, kırpma ve denetim sırası aynıdır.
