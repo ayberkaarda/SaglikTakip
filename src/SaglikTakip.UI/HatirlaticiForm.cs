@@ -3,12 +3,13 @@ using SaglikTakip.Business.Insights;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
+using SaglikTakip.UI.Theming;
 using Serilog;
 
 namespace SaglikTakip.UI
 {
     /// <summary>Defines periodic reminders and lists them; due and missed ones come first.</summary>
-    public sealed class HatirlaticiForm : Form
+    public sealed class HatirlaticiForm : AppDialog
     {
         private static readonly Dictionary<string, string> Columns = new()
         {
@@ -26,39 +27,33 @@ namespace SaglikTakip.UI
         private readonly ExclusiveOperation _write = new();
 
         private readonly ComboBox _userPicker = FormLayout.UserPicker();
-        private readonly ComboBox _kindPicker = new() { Name = "kindPicker", DropDownStyle = ComboBoxStyle.DropDownList, Width = 120 };
-        private readonly TextBox _title = new() { Name = "titleInput", MaxLength = 100, Width = 240 };
-        private readonly NumericUpDown _every = new() { Name = "everyInput", Minimum = 1, Maximum = 365, Value = 1, Width = 60 };
-        private readonly ComboBox _unitPicker = new() { Name = "unitPicker", DropDownStyle = ComboBoxStyle.DropDownList, Width = 80 };
+        private readonly ComboBox _kindPicker = FormLayout.Picker("kindPicker", 130);
+        private readonly TextBox _title = new() { Name = "titleInput", MaxLength = 100, PlaceholderText = "Örn. Tansiyon ölç" };
+        private readonly NumericUpDown _every = new() { Name = "everyInput", Minimum = 1, Maximum = 365, Value = 1, Width = 72, TextAlign = HorizontalAlignment.Right };
+        private readonly ComboBox _unitPicker = FormLayout.Picker("unitPicker", 110);
         private readonly DateTimePicker _firstDue = new()
         {
             Name = "firstDuePicker",
             Format = DateTimePickerFormat.Custom,
             CustomFormat = "dd.MM.yyyy HH:mm",
-            Width = 140,
+            Width = 170,
         };
 
-        private readonly DataGridView _grid = new()
+        private readonly ThemedGrid _grid = new()
         {
             Name = "reminderGrid",
             Dock = DockStyle.Fill,
-            ReadOnly = true,
-            AllowUserToAddRows = false,
-            AllowUserToDeleteRows = false,
-            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            MultiSelect = false,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            BackgroundColor = SystemColors.Window,
-            RowHeadersVisible = false,
+            EmptyText = "Henüz hatırlatıcı yok. Soldaki formdan ilk hatırlatıcıyı ekleyin.",
         };
 
-        private readonly Button _add = FormLayout.Button("btnEkle", "Ekle");
+        private readonly Button _add = FormLayout.Button("btnEkle", "Ekle", ButtonKind.Primary);
         private readonly Button _complete = FormLayout.Button("btnTamamlandi", "Tamamlandı");
-        private readonly Button _delete = FormLayout.Button("btnSil", "Sil");
+        private readonly Button _delete = FormLayout.Button("btnSil", "Sil", ButtonKind.Danger);
         private readonly Button _refresh = FormLayout.Button("btnYenile", "Yenile");
-        private readonly Label _status = FormLayout.Value("statusLabel");
+        private readonly Label _status = FormLayout.Hint(string.Empty);
 
         public HatirlaticiForm(IUserService userService, IReminderService reminderService)
+            : base("Hatırlatıcılar", "Ölçüm ve egzersiz için tekrarlayan hatırlatmalar; zamanı gelenler üstte.", Glyphs.Bell, new Size(1060, 640))
         {
             _userService = userService;
             _reminderService = reminderService;
@@ -128,13 +123,15 @@ namespace SaglikTakip.UI
             {
                 if (_userPicker.SelectedItem is not User user)
                 {
-                    MessageBox.Show(this, "Lütfen bir kullanıcı seçin.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ShowStatus(StatusKind.Warning, "Lütfen bir kullanıcı seçin.");
+                    _userPicker.Focus();
                     return;
                 }
 
                 await _reminderService.AddAsync(
                     user.Id, ((KindOption)_kindPicker.SelectedItem!).Kind, _title.Text, IntervalHours, _firstDue.Value);
                 added = true;
+                ShowStatus(StatusKind.Success, "Hatırlatıcı eklendi.");
                 _title.Clear();
             },
             WriteControls());
@@ -181,8 +178,7 @@ namespace SaglikTakip.UI
                     return;
                 }
 
-                var answer = MessageBox.Show(this, "Seçilen hatırlatıcı silinsin mi?", "Onay", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                if (answer == DialogResult.Yes)
+                if (Dialogs.Confirm(this, "Seçilen hatırlatıcı silinsin mi?"))
                 {
                     changed = await _reminderService.DeleteAsync(item.Reminder.Id);
                 }
@@ -225,6 +221,16 @@ namespace SaglikTakip.UI
                 .ToList();
             _grid.DataSource = rows;
             _grid.ConfigureColumns(Columns);
+
+            // Short values keep their full width; the user and the title share the rest.
+            foreach (var name in new[] { nameof(Row.Status), nameof(Row.Kind), nameof(Row.Interval), nameof(Row.NextDue) })
+            {
+                if (_grid.Columns[name] is { } fitted)
+                {
+                    fitted.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                }
+            }
+
             if (_grid.Columns[nameof(Row.NextDue)] is { } column)
             {
                 column.DefaultCellStyle.Format = "dd.MM.yyyy HH:mm";
@@ -234,31 +240,74 @@ namespace SaglikTakip.UI
             _status.Text = string.Format(CultureInfo.CurrentCulture, "{0} hatırlatıcı, {1} tanesinin zamanı geldi.", items.Count, due);
         }
 
+        /// <summary>Due and missed rows get the warning or danger text color and a stronger weight.</summary>
+        private void HighlightStatus(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || _grid.Columns[e.ColumnIndex].DataPropertyName != nameof(Row.Status)
+                || _grid.Rows[e.RowIndex].DataBoundItem is not Row { Item.IsDue: true } row || e.CellStyle is null)
+            {
+                return;
+            }
+
+            e.CellStyle.ForeColor = row.Item.DueOccurrences > 1 ? Theme.Current.Danger : Theme.Current.Warning;
+            e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
+            e.CellStyle.Font = Theme.Fonts.BodyStrong;
+        }
+
         private void BuildLayout()
         {
-            FormLayout.ApplyDefaults(this, "Sağlık Takip | Hatırlatıcılar", new Size(820, 520));
             Name = nameof(HatirlaticiForm);
+            _grid.CellFormatting += HighlightStatus;
 
-            var every = FormLayout.Row(_every, _unitPicker);
-            every.Dock = DockStyle.None;
-            every.Padding = new Padding(0);
-            var editor = FormLayout.Grid(
-                ("Kullanıcı", _userPicker),
-                ("Tür", _kindPicker),
-                ("Başlık", _title),
-                ("Tekrar", every),
-                ("İlk hatırlatma", _firstDue));
+            var every = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                Margin = Padding.Empty,
+                AccessibleName = "Tekrar",
+            };
+            _every.Margin = new Padding(0, 0, Spacing.S, 0);
+            _every.AccessibleName = "Tekrar sayısı";
+            _unitPicker.Margin = Padding.Empty;
+            _unitPicker.AccessibleName = "Tekrar birimi";
+            every.Controls.Add(_every);
+            every.Controls.Add(_unitPicker);
+
+            var editor = FormLayout.Fields(
+                "reminderEditor",
+                [FormLayout.Field("&Kullanıcı", _userPicker)],
+                [FormLayout.Field("&Tür", _kindPicker)],
+                [FormLayout.Field("&Başlık", _title)],
+                [FormLayout.Field("&Her", every)],
+                [FormLayout.Field("İlk &hatırlatma", _firstDue)]);
+            _add.Margin = new Padding(0, Spacing.S, 0, 0);
             var addRow = FormLayout.Row(_add);
+            var editorBody = FormLayout.Stack("editorStack", editor, addRow);
 
-            var close = FormLayout.Button("btnKapat", "Kapat");
-            close.Click += (_, _) => Close();
-            var actions = FormLayout.Row(_complete, _delete, _refresh, close, _status);
+            var actions = FormLayout.Row(_complete, _delete, _refresh, _status);
             actions.Dock = DockStyle.Bottom;
+            actions.Padding = new Padding(0, Spacing.M, 0, 0);
+            _status.Margin = new Padding(Spacing.M, Spacing.M, 0, 0);
+            var list = new Panel { Dock = DockStyle.Fill };
+            list.Controls.Add(_grid);
+            list.Controls.Add(actions);
 
-            Controls.Add(_grid);
-            Controls.Add(actions);
-            Controls.Add(addRow);
-            Controls.Add(editor);
+            var layout = new TableLayoutPanel { Name = "layout", Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            var editorCard = FormLayout.Card("editorCard", "Yeni hatırlatıcı", editorBody);
+            editorCard.Margin = new Padding(0, 0, Spacing.S, Spacing.L);
+            var listCard = FormLayout.Card("listCard", "Hatırlatıcılar", list);
+            listCard.Margin = new Padding(Spacing.S, 0, 0, Spacing.L);
+            layout.Controls.Add(editorCard, 0, 0);
+            layout.Controls.Add(listCard, 1, 0);
+            Content.Controls.Add(layout);
+
+            SetFooterNote("Uygulama açıkken zamanı gelen hatırlatıcılar bildirim alanından duyurulur.");
+            SetFooterButtons(CreateCloseButton());
+            FinishLayout();
         }
 
         private sealed record KindOption(ReminderKind Kind)

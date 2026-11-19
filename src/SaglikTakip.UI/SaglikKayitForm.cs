@@ -3,34 +3,59 @@ using SaglikTakip.Business.Insights;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
+using SaglikTakip.UI.Theming;
 using Serilog;
 
 namespace SaglikTakip.UI
 {
     /// <summary>Adds a weight and pulse measurement for a user.</summary>
-    public partial class SaglikKayitForm : Form
+    public sealed class SaglikKayitForm : AppDialog
     {
         private readonly IUserService _userService;
         private readonly IHealthRecordService _healthRecordService;
         private readonly IGoalService _goalService;
         private readonly ExclusiveOperation _save = new();
 
+        private readonly ThemedComboBox comboBox1 = FormLayout.UserPicker("comboBox1");
+        private readonly DateTimePicker dateTimePicker1 = new() { Name = "dateTimePicker1", Format = DateTimePickerFormat.Short, Width = 140 };
+        private readonly NumericUpDown numericUpDown1 = new() { Name = "numericUpDown1", Maximum = 200, Width = 120, TextAlign = HorizontalAlignment.Right };
+        private readonly NumericUpDown numericUpDown2 = new() { Name = "numericUpDown2", Maximum = 250, Width = 120, TextAlign = HorizontalAlignment.Right };
+        private readonly TextBox textBox1 = new()
+        {
+            Name = "textBox1",
+            MaxLength = 500,
+            Multiline = true,
+            AcceptsReturn = true,
+            Height = 76,
+
+            // The preferred height of a multiline box does not follow Height; the layout uses these limits.
+            MinimumSize = new Size(0, 76),
+            MaximumSize = new Size(0, 76),
+            PlaceholderText = "İsteğe bağlı, en fazla 500 karakter",
+        };
+
+        private readonly Button btnKaydet = FormLayout.Button("btnKaydet", "Kaydet", ButtonKind.Primary);
+        private readonly Button btnkapat;
+
         public SaglikKayitForm(IUserService userService, IHealthRecordService healthRecordService, IGoalService goalService)
+            : base("Sağlık Kaydı Ekle", "Ölçümü kaydedin; hedef sınırlarının dışındaysa uyarı alırsınız.", Glyphs.Heart, new Size(620, 600))
         {
             _userService = userService;
             _healthRecordService = healthRecordService;
             _goalService = goalService;
-            InitializeComponent();
-        }
+            btnkapat = CreateCloseButton("btnkapat");
+            btnKaydet.Click += async (_, _) => await SaveAsync();
+            Load += async (_, _) => await this.RunAsync(() => comboBox1.LoadUsersAsync(_userService));
 
-        private async void SaglikKayitForm_Load(object sender, EventArgs e)
-        {
-            await this.RunAsync(() => comboBox1.LoadUsersAsync(_userService));
-        }
-
-        private async void btnKaydet_Click(object sender, EventArgs e)
-        {
-            await SaveAsync();
+            var fields = FormLayout.Fields(
+                "fields",
+                [FormLayout.Field("&Kullanıcı", comboBox1)],
+                [FormLayout.Field("&Tarih", dateTimePicker1), FormLayout.Field("K&ilo (kg)", numericUpDown1), FormLayout.Field("&Nabız (atım/dk)", numericUpDown2)],
+                [FormLayout.Field("N&otlar", textBox1)]);
+            Content.Controls.Add(FormLayout.Page((FormLayout.Card("recordCard", "Ölçüm", fields, fill: false), false)));
+            SetFooterButtons(btnKaydet, btnkapat);
+            AcceptButton = btnKaydet;
+            FinishLayout();
         }
 
         /// <summary>Saves the entered measurement; ignored while a previous save is still pending.</summary>
@@ -40,7 +65,8 @@ namespace SaglikTakip.UI
             {
                 if (comboBox1.SelectedItem is not User user)
                 {
-                    MessageBox.Show(this, "Lütfen bir kullanıcı seçin.", "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ShowStatus(StatusKind.Warning, "Lütfen bir kullanıcı seçin.");
+                    comboBox1.Focus();
                     return;
                 }
 
@@ -54,11 +80,11 @@ namespace SaglikTakip.UI
                 var alerts = await CheckGoalAsync(record);
                 if (alerts.Count == 0)
                 {
-                    MessageBox.Show(this, "Sağlık kaydı eklendi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ShowStatus(StatusKind.Success, "Sağlık kaydı eklendi.");
                 }
                 else
                 {
-                    MessageBox.Show(this, DescribeAlerts(alerts), "Uyarı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ShowStatus(StatusKind.Warning, DescribeAlerts(alerts));
                 }
             },
             btnKaydet, btnkapat, comboBox1, dateTimePicker1, numericUpDown1, numericUpDown2, textBox1);
@@ -85,16 +111,6 @@ namespace SaglikTakip.UI
                 Log.Warning("Goal check after saving a health record failed: {Details}", ErrorReporter.FormatForLog(ex));
                 return [];
             }
-        }
-
-        private void btnkapat_Click(object sender, EventArgs e)
-        {
-            Close();
-        }
-
-        private void btnAsagial_Click(object sender, EventArgs e)
-        {
-            WindowState = FormWindowState.Minimized;
         }
     }
 }

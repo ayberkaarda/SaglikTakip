@@ -1,5 +1,8 @@
+using SaglikTakip.Business;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
+using SaglikTakip.UI.Theming;
+using Serilog;
 
 namespace SaglikTakip.UI.Infrastructure;
 
@@ -7,7 +10,8 @@ internal static class UiExtensions
 {
     /// <summary>
     /// Runs an asynchronous UI action with a wait cursor. Business rule violations are shown as
-    /// warnings; anything else is reported through <see cref="ErrorReporter"/>.
+    /// warnings (inline when the form has a message strip); anything else is reported through
+    /// <see cref="ErrorReporter"/>.
     /// </summary>
     public static async Task RunAsync(this Form form, Func<Task> action)
     {
@@ -23,7 +27,15 @@ internal static class UiExtensions
         catch (Exception ex)
 #pragma warning restore CA1031
         {
-            ErrorReporter.Show(ex, form);
+            if (ex is BusinessRuleException && form is IStatusSurface surface)
+            {
+                ErrorReporter.Record(Log.Logger, ex);
+                surface.ShowStatus(StatusKind.Warning, ex.Message);
+            }
+            else
+            {
+                ErrorReporter.Show(ex, form);
+            }
         }
         finally
         {
