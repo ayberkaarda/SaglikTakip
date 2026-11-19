@@ -1,4 +1,6 @@
 using System.Drawing;
+using SaglikTakip.Business.Insights;
+using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
 using SaglikTakip.UI.Tests.Support;
@@ -28,6 +30,25 @@ public sealed class TrendFormTests
 
         Assert.Equal([80d, 81d], chart.Points.Select(p => p.Value));
     });
+
+    [Fact]
+    public void Summary_WithSparseDays_LabelsObservedDayWindow()
+    {
+        var trend = new MetricTrend
+        {
+            Metric = HealthMetric.Weight,
+            From = new DateTime(2026, 6, 1),
+            To = new DateTime(2026, 6, 30),
+            MovingAverageWindow = 2,
+            Points = [new(new DateTime(2026, 6, 1), 60, 1, 60), new(new DateTime(2026, 6, 30), 80, 1, 70)],
+            Summary = new MetricSummary(2, 60, 80, 70, 60, 80),
+        };
+
+        var text = TrendForm.DescribeSummary(trend, "kg");
+
+        Assert.Contains("Son 2 ölçüm gününün ortalaması: 70 kg", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("günlük ortalama", text, StringComparison.Ordinal);
+    }
 
     [Fact]
     public void NoUserSelected_ShowsHintWithoutCallingTheService() => Run(() =>

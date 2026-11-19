@@ -165,7 +165,7 @@ namespace SaglikTakip.UI
             var lastAverage = trend.Points.Count > 0 ? trend.Points[^1].MovingAverage : null;
             return string.Format(
                 culture,
-                "Ölçüm: {0}   En düşük: {1:0.#} {5}   En yüksek: {2:0.#} {5}   Ortalama: {3:0.#} {5}   Son {6} günlük ortalama: {4}",
+                "Ölçüm: {0}   En düşük: {1:0.#} {5}   En yüksek: {2:0.#} {5}   Ortalama: {3:0.#} {5}   Son {6} ölçüm gününün ortalaması: {4}",
                 s.Count,
                 s.Minimum,
                 s.Maximum,
@@ -185,7 +185,7 @@ namespace SaglikTakip.UI
                 FormLayout.Caption("Ölçüm"), _metricPicker,
                 FormLayout.Caption("Başlangıç"), _from,
                 FormLayout.Caption("Bitiş"), _to,
-                FormLayout.Caption("Hareketli ortalama (gün)"), _window);
+                FormLayout.Caption("Hareketli ortalama (ölçüm günü)"), _window);
 
             var summaryRow = FormLayout.Row(_summary, _goal);
             summaryRow.FlowDirection = FlowDirection.TopDown;
