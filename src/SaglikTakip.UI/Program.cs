@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SaglikTakip.Business;
 using SaglikTakip.Data;
 using SaglikTakip.Data.Persistence;
 using SaglikTakip.UI.Infrastructure;
+using Serilog;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("SaglikTakip.UI.Tests")]
 
@@ -17,15 +18,43 @@ namespace SaglikTakip.UI
         [STAThread]
         private static void Main()
         {
+            Log.Logger = AppLogging.CreateLogger(AppLogging.DefaultDirectory);
+            try
+            {
+                Log.Information("Application started");
+                Run();
+            }
+            finally
+            {
+                Log.Information("Application stopped");
+                Log.CloseAndFlush();
+            }
+        }
+
+        private static void Run()
+        {
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.ThreadException += (_, e) => ErrorReporter.Show(e.Exception);
-            AppDomain.CurrentDomain.UnhandledException += (_, e) => ErrorReporter.Show(e.ExceptionObject as Exception);
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                if (e.IsTerminating)
+                {
+                    Log.Fatal("Unhandled exception terminates the application");
+                }
+
+                ErrorReporter.Show(e.ExceptionObject as Exception);
+                if (e.IsTerminating)
+                {
+                    Log.CloseAndFlush();
+                }
+            };
 
             ApplicationConfiguration.Initialize();
 
             var connectionString = AppConfiguration.ResolveConnectionString(BuildConfiguration());
             if (string.IsNullOrWhiteSpace(connectionString))
             {
+                Log.Warning("No database connection string is configured");
                 MessageBox.Show(
                     "Veritabanı bağlantı ayarı bulunamadı.\n\n"
                     + "appsettings.example.json dosyasını appsettings.json olarak kopyalayıp bağlantı bilgisini girin "

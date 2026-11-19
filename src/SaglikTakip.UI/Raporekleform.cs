@@ -1,8 +1,8 @@
-﻿using System.Diagnostics;
 using System.Globalization;
 using SaglikTakip.Business.Services;
 using SaglikTakip.Domain.Entities;
 using SaglikTakip.UI.Infrastructure;
+using Serilog;
 
 namespace SaglikTakip.UI
 {
@@ -94,7 +94,8 @@ namespace SaglikTakip.UI
                 }
                 else
                 {
-                    Trace.TraceWarning(ErrorReporter.FormatForLog(ex));
+                    // The user has already moved on; keep the failure for diagnostics only.
+                    Log.Warning("A superseded report request failed: {Details}", ErrorReporter.FormatForLog(ex));
                 }
             }
             finally
