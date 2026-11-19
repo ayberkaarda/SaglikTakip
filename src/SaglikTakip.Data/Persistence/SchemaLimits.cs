@@ -20,4 +20,16 @@ internal static class SchemaLimits
     public const string PulseCheck = "[Nabiz] >= 0 AND [Nabiz] <= 250";
     public const string DurationCheck = "[SureDakika] >= 0 AND [SureDakika] <= 1440";
     public const string RepetitionsCheck = "[TekrarSayisi] >= 0 AND [TekrarSayisi] <= 1000";
+
+    // Goals (Hedefler): every value is optional; present values follow the measurement limits.
+    public const string GoalWeightCheck =
+        "([HedefKilo] IS NULL OR ([HedefKilo] >= 1 AND [HedefKilo] <= 200))"
+        + " AND ([BaslangicKilo] IS NULL OR ([BaslangicKilo] >= 1 AND [BaslangicKilo] <= 200))"
+        + " AND ([MinKilo] IS NULL OR ([MinKilo] >= 1 AND [MinKilo] <= 200))"
+        + " AND ([MaxKilo] IS NULL OR ([MaxKilo] >= 1 AND [MaxKilo] <= 200))";
+    public const string GoalWeightRangeCheck = "[MinKilo] IS NULL OR [MaxKilo] IS NULL OR [MinKilo] <= [MaxKilo]";
+    public const string GoalPulseCheck =
+        "([MinNabiz] IS NULL OR ([MinNabiz] >= 1 AND [MinNabiz] <= 250))"
+        + " AND ([MaxNabiz] IS NULL OR ([MaxNabiz] >= 1 AND [MaxNabiz] <= 250))";
+    public const string GoalPulseRangeCheck = "[MinNabiz] IS NULL OR [MaxNabiz] IS NULL OR [MinNabiz] <= [MaxNabiz]";
 }

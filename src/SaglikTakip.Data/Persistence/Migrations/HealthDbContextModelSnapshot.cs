@@ -93,6 +93,66 @@ namespace SaglikTakip.Data.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SaglikTakip.Domain.Entities.HealthGoal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("MaxPulse")
+                        .HasColumnType("int")
+                        .HasColumnName("MaxNabiz");
+
+                    b.Property<double?>("MaxWeight")
+                        .HasColumnType("float")
+                        .HasColumnName("MaxKilo");
+
+                    b.Property<int?>("MinPulse")
+                        .HasColumnType("int")
+                        .HasColumnName("MinNabiz");
+
+                    b.Property<double?>("MinWeight")
+                        .HasColumnType("float")
+                        .HasColumnName("MinKilo");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<double?>("StartWeight")
+                        .HasColumnType("float")
+                        .HasColumnName("BaslangicKilo");
+
+                    b.Property<double?>("TargetWeight")
+                        .HasColumnType("float")
+                        .HasColumnName("HedefKilo");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("KullaniciId");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Hedefler");
+
+                    b.HasIndex(new[] { "UserId" }, "IX_Hedefler_KullaniciId")
+                        .IsUnique();
+
+                    b.ToTable("Hedefler", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Hedefler_Kilo", "([HedefKilo] IS NULL OR ([HedefKilo] >= 1 AND [HedefKilo] <= 200)) AND ([BaslangicKilo] IS NULL OR ([BaslangicKilo] >= 1 AND [BaslangicKilo] <= 200)) AND ([MinKilo] IS NULL OR ([MinKilo] >= 1 AND [MinKilo] <= 200)) AND ([MaxKilo] IS NULL OR ([MaxKilo] >= 1 AND [MaxKilo] <= 200))");
+
+                            t.HasCheckConstraint("CK_Hedefler_KiloAraligi", "[MinKilo] IS NULL OR [MaxKilo] IS NULL OR [MinKilo] <= [MaxKilo]");
+
+                            t.HasCheckConstraint("CK_Hedefler_Nabiz", "([MinNabiz] IS NULL OR ([MinNabiz] >= 1 AND [MinNabiz] <= 250)) AND ([MaxNabiz] IS NULL OR ([MaxNabiz] >= 1 AND [MaxNabiz] <= 250))");
+
+                            t.HasCheckConstraint("CK_Hedefler_NabizAraligi", "[MinNabiz] IS NULL OR [MaxNabiz] IS NULL OR [MinNabiz] <= [MaxNabiz]");
+                        });
+                });
+
             modelBuilder.Entity("SaglikTakip.Domain.Entities.HealthRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -251,6 +311,16 @@ namespace SaglikTakip.Data.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Egzersizler_Kullanicilar");
+                });
+
+            modelBuilder.Entity("SaglikTakip.Domain.Entities.HealthGoal", b =>
+                {
+                    b.HasOne("SaglikTakip.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Hedefler_Kullanicilar");
                 });
 
             modelBuilder.Entity("SaglikTakip.Domain.Entities.HealthRecord", b =>

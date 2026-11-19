@@ -18,6 +18,8 @@ public sealed class HealthDbContext(DbContextOptions<HealthDbContext> options) :
 
     public DbSet<Exercise> Exercises => Set<Exercise>();
 
+    public DbSet<HealthGoal> HealthGoals => Set<HealthGoal>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
