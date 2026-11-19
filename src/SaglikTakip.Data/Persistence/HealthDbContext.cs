@@ -22,5 +22,12 @@ public sealed class HealthDbContext(DbContextOptions<HealthDbContext> options) :
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HealthDbContext).Assembly);
+
+        if (!Database.IsSqlServer())
+        {
+            // N'...' literals are SQL Server syntax; the migrations keep the SQL Server form.
+            modelBuilder.Entity<User>().ToTable(table =>
+                table.HasCheckConstraint("CK_Kullanicilar_Cinsiyet", SchemaLimits.PortableGenderCheck));
+        }
     }
 }
