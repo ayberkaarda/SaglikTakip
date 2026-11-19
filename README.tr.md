@@ -332,3 +332,7 @@ Hedef makinede .NET 10 Desktop Runtime gerekir. `appsettings.json` dosyasını `
 
 Bu proje, bireylerin sağlık takibini kolaylaştırmak ve düzenli olarak egzersiz yapmalarını desteklemek amacıyla
 hazırlanmıştır. Eğitim, staj veya bireysel projelerinizde kullanabilirsiniz.
+
+## Lisans
+
+[MIT Lisansı](LICENSE) ile yayımlanmıştır.

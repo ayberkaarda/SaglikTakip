@@ -332,3 +332,7 @@ The target machine needs the .NET 10 Desktop Runtime. Put `appsettings.json` nex
 
 This project was built to make personal health tracking easier and to support regular exercise. You can use it in
 educational, internship or personal projects.
+
+## License
+
+Released under the [MIT License](LICENSE).
