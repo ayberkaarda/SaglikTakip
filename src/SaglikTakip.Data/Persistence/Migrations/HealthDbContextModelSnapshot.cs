@@ -237,6 +237,57 @@ namespace SaglikTakip.Data.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SaglikTakip.Domain.Entities.Reminder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("IntervalHours")
+                        .HasColumnType("int")
+                        .HasColumnName("AralikSaat");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int")
+                        .HasColumnName("Tur");
+
+                    b.Property<DateTime>("NextDueAt")
+                        .HasColumnType("datetime2(0)")
+                        .HasColumnName("SonrakiZaman");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("Baslik");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("KullaniciId");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Hatirlaticilar");
+
+                    b.HasIndex(new[] { "UserId" }, "IX_Hatirlaticilar_KullaniciId");
+
+                    b.HasIndex(new[] { "NextDueAt" }, "IX_Hatirlaticilar_SonrakiZaman");
+
+                    b.ToTable("Hatirlaticilar", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Hatirlaticilar_AralikSaat", "[AralikSaat] >= 1 AND [AralikSaat] <= 8760");
+
+                            t.HasCheckConstraint("CK_Hatirlaticilar_Tur", "[Tur] IN (0, 1)");
+                        });
+                });
+
             modelBuilder.Entity("SaglikTakip.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -331,6 +382,16 @@ namespace SaglikTakip.Data.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_SaglikKayitlari_Kullanicilar");
+                });
+
+            modelBuilder.Entity("SaglikTakip.Domain.Entities.Reminder", b =>
+                {
+                    b.HasOne("SaglikTakip.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Hatirlaticilar_Kullanicilar");
                 });
 #pragma warning restore 612, 618
         }

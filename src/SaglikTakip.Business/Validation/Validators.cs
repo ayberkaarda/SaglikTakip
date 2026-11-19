@@ -1,5 +1,6 @@
 using System.Globalization;
 using FluentValidation;
+using SaglikTakip.Business.Insights;
 using SaglikTakip.Domain.Entities;
 
 namespace SaglikTakip.Business.Validation;
@@ -15,6 +16,8 @@ internal static class Messages
     public const string EmptyGoal = "En az bir hedef veya sınır girin.";
     public const string WeightLimitsReversed = "En düşük kilo en yüksek kilodan büyük olamaz.";
     public const string PulseLimitsReversed = "En düşük nabız en yüksek nabızdan büyük olamaz.";
+    public const string ReminderKindRequired = "Lütfen hatırlatıcı türünü seçin.";
+    public const string ReminderInPast = "İlk hatırlatma zamanı geçmişte olamaz.";
 
     public static string Required(string fieldName) =>
         string.Format(CultureInfo.CurrentCulture, "{0} alanı boş bırakılamaz.", fieldName);
@@ -141,6 +144,29 @@ internal sealed class GoalInputValidator : AbstractValidator<GoalInput>
         RuleFor(property)
             .Must(value => value is null or (>= HealthRecordInputValidator.MinPulse and <= HealthRecordInputValidator.MaxPulse))
             .WithMessage(_ => Messages.OutOfRange(fieldName, HealthRecordInputValidator.MinPulse, HealthRecordInputValidator.MaxPulse));
+}
+
+internal sealed class ReminderInputValidator : AbstractValidator<ReminderInput>
+{
+    public const int MaxTitleLength = 100;
+
+    public ReminderInputValidator(TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        ClassLevelCascadeMode = CascadeMode.Stop;
+        RuleLevelCascadeMode = CascadeMode.Stop;
+
+        RuleFor(r => r.Kind).Must(kind => Enum.IsDefined(kind)).WithMessage(Messages.ReminderKindRequired);
+        RuleFor(r => r.Title).RequiredText("Başlık", MaxTitleLength);
+        RuleFor(r => r.IntervalHours)
+            .Between("Tekrar aralığı (saat)", ReminderSchedule.MinIntervalHours, ReminderSchedule.MaxIntervalHours);
+
+        // The current minute is still accepted; "now" is read on every validation.
+        RuleFor(r => r.FirstDueAt)
+            .Must(first => first >= ReminderSchedule.ToMinute(timeProvider.GetLocalNow().DateTime))
+            .WithMessage(Messages.ReminderInPast);
+    }
 }
 
 internal sealed class ExerciseInputValidator : AbstractValidator<ExerciseInput>

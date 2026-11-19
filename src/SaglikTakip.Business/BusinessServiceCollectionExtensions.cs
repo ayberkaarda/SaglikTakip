@@ -24,6 +24,8 @@ public static class BusinessServiceCollectionExtensions
         services.AddSingleton<ITrendService, TrendService>();
         services.AddSingleton<IValidator<GoalInput>, GoalInputValidator>();
         services.AddSingleton<IGoalService, GoalService>();
+        services.AddSingleton<IValidator<ReminderInput>, ReminderInputValidator>();
+        services.AddSingleton<IReminderService, ReminderService>();
         return services;
     }
 }

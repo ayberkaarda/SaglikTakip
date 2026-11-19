@@ -202,7 +202,11 @@ public sealed class LegacyUpgradeTests
             ct));
 
         // Later migrations run on top of the adopted baseline.
-        foreach (var name in new[] { "PK_Hedefler", "FK_Hedefler_Kullanicilar", "CK_Hedefler_NabizAraligi" })
+        foreach (var name in new[]
+        {
+            "PK_Hedefler", "FK_Hedefler_Kullanicilar", "CK_Hedefler_NabizAraligi",
+            "PK_Hatirlaticilar", "FK_Hatirlaticilar_Kullanicilar", "CK_Hatirlaticilar_AralikSaat",
+        })
         {
             Assert.Equal(1, await database.ScalarAsync("SELECT COUNT(*) FROM sys.objects WHERE name = @name", ct, ("@name", name)));
         }

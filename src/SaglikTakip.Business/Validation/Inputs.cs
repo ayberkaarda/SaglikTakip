@@ -1,3 +1,6 @@
+using SaglikTakip.Business.Insights;
+using SaglikTakip.Domain.Entities;
+
 namespace SaglikTakip.Business.Validation;
 
 /// <summary>User data entered on the "Kullanıcı Ekle" screen. Text values are trimmed on creation.</summary>
@@ -31,6 +34,13 @@ public sealed record GoalInput(
     decimal? MaxWeight,
     int? MinPulse,
     int? MaxPulse);
+
+/// <summary>A new periodic reminder. The title is trimmed and the first time is cut to the minute.</summary>
+internal sealed record ReminderInput(int UserId, ReminderKind Kind, string Title, int IntervalHours, DateTime FirstDueAt)
+{
+    public static ReminderInput Create(int userId, ReminderKind kind, string? title, int intervalHours, DateTime firstDueAt) =>
+        new(userId, kind, title?.Trim() ?? string.Empty, intervalHours, ReminderSchedule.ToMinute(firstDueAt));
+}
 
 /// <summary>An exercise entry. The name is trimmed on creation.</summary>
 internal sealed record ExerciseInput(int UserId, string Name, int DurationMinutes, int Repetitions)

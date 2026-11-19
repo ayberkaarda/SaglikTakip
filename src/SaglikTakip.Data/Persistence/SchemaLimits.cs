@@ -32,4 +32,9 @@ internal static class SchemaLimits
         "([MinNabiz] IS NULL OR ([MinNabiz] >= 1 AND [MinNabiz] <= 250))"
         + " AND ([MaxNabiz] IS NULL OR ([MaxNabiz] >= 1 AND [MaxNabiz] <= 250))";
     public const string GoalPulseRangeCheck = "[MinNabiz] IS NULL OR [MaxNabiz] IS NULL OR [MinNabiz] <= [MaxNabiz]";
+
+    // Reminders (Hatirlaticilar).
+    public const int ReminderTitleLength = 100;
+    public const string ReminderKindCheck = "[Tur] IN (0, 1)";
+    public const string ReminderIntervalCheck = "[AralikSaat] >= 1 AND [AralikSaat] <= 8760";
 }

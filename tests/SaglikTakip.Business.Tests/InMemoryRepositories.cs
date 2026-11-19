@@ -74,6 +74,41 @@ internal sealed class InMemoryHealthGoalRepository : IHealthGoalRepository
         Task.FromResult(Goals.RemoveAll(g => g.UserId == userId) > 0);
 }
 
+internal sealed class InMemoryReminderRepository : IReminderRepository
+{
+    public List<Reminder> Reminders { get; } = [];
+
+    public Task<IReadOnlyList<Reminder>> GetAllAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Reminder>>(Reminders.OrderBy(r => r.NextDueAt).ThenBy(r => r.Id).ToList());
+
+    public Task<IReadOnlyList<Reminder>> GetDueAsync(DateTime now, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Reminder>>(Reminders.Where(r => r.NextDueAt <= now).OrderBy(r => r.NextDueAt).ToList());
+
+    public Task<Reminder?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Reminders.SingleOrDefault(r => r.Id == id));
+
+    public Task<int> AddAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    {
+        reminder.Id = Reminders.Count + 1;
+        Reminders.Add(reminder);
+        return Task.FromResult(reminder.Id);
+    }
+
+    public Task<bool> RescheduleAsync(int id, DateTime expectedDueAt, DateTime nextDueAt, CancellationToken cancellationToken = default)
+    {
+        var reminder = Reminders.SingleOrDefault(r => r.Id == id && r.NextDueAt == expectedDueAt);
+        if (reminder is not null)
+        {
+            reminder.NextDueAt = nextDueAt;
+        }
+
+        return Task.FromResult(reminder is not null);
+    }
+
+    public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Reminders.RemoveAll(r => r.Id == id) > 0);
+}
+
 internal sealed class InMemoryExerciseRepository : IExerciseRepository
 {
     public List<Exercise> Exercises { get; } = [];
