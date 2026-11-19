@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="SaglikTakip.UI.Tests" />
+    <InternalsVisibleTo Include="SaglikTakip.Screenshots" />
   </ItemGroup>
 
   <ItemGroup>
