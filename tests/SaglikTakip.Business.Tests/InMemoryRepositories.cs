@@ -35,6 +35,17 @@ internal sealed class InMemoryHealthRecordRepository : IHealthRecordRepository
             .ThenByDescending(r => r.Id)
             .ToList());
 
+    public Task<IReadOnlyList<HealthRecord>> GetByUserBetweenAsync(
+        int userId,
+        DateTime firstDay,
+        DateTime lastDay,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<HealthRecord>>(Records
+            .Where(r => r.UserId == userId && r.Date.Date >= firstDay.Date && r.Date.Date <= lastDay.Date)
+            .OrderBy(r => r.Date)
+            .ThenBy(r => r.Id)
+            .ToList());
+
     public Task<int> AddAsync(HealthRecord record, CancellationToken cancellationToken = default)
     {
         record.Id = Records.Count + 1;

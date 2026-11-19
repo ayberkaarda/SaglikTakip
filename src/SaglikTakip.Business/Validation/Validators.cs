@@ -11,6 +11,7 @@ internal static class Messages
     public const string InvalidDate = "Lütfen geçerli bir tarih seçin.";
     public const string FutureDate = "Sağlık kaydının tarihi ileri bir tarih olamaz.";
     public const string NoEffort = "Süre veya tekrar sayısından en az biri sıfırdan büyük olmalıdır.";
+    public const string InvalidRange = "Başlangıç tarihi bitiş tarihinden sonra olamaz.";
 
     public static string Required(string fieldName) =>
         string.Format(CultureInfo.CurrentCulture, "{0} alanı boş bırakılamaz.", fieldName);

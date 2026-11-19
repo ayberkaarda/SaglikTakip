@@ -21,6 +21,7 @@ public static class BusinessServiceCollectionExtensions
         services.AddSingleton<IHealthRecordService, HealthRecordService>();
         services.AddSingleton<IExerciseService, ExerciseService>();
         services.AddSingleton<IReportService, ReportService>();
+        services.AddSingleton<ITrendService, TrendService>();
         return services;
     }
 }
